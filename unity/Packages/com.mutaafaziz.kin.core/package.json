@@ -1,0 +1,9 @@
+{
+  "name": "com.mutaafaziz.kin.core",
+  "version": "0.1.0",
+  "displayName": "KIN Core",
+  "description": "Engine-free core of KIN: seeded genome and RNG, creature brain, KIN CROSS protocol and state machines, stitch matching, persona, care and AI-director validation. A faithful port of the TypeScript core, interoperable with the web clients and the Cloudflare relay.",
+  "unity": "6000.3",
+  "author": { "name": "Mutaaf Aziz" },
+  "license": "MIT"
+}
