@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Kin_Sky
+  m_Shader: {fileID: 4800000, guid: 54745fc7bc14a485bb2d36f2f919face, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords:
+  - _SUNDISK_HIGH_QUALITY
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _AtmosphereThickness: 1
+    - _Exposure: 0.22
+    - _HorizonWidth: 0.22
+    - _Stars: 1
+    - _SunDisk: 2
+    - _SunSize: 0.035
+    - _SunSizeConvergence: 6
+    m_Colors:
+    - _Below: {r: 0.16, g: 0.19, b: 0.29, a: 1}
+    - _GroundColor: {r: 0.36899996, g: 0.34899998, b: 0.34099993, a: 1}
+    - _Horizon: {r: 0.12, g: 0.16, b: 0.32, a: 1}
+    - _SkyTint: {r: 0.3, g: 0.33, b: 0.6, a: 1}
+    - _SunColor: {r: 0.525, g: 0.56, b: 0.7, a: 0.7}
+    - _SunDir: {r: -0.41451886, g: 0.5591929, b: -0.71796757, a: 0}
+    - _Zenith: {r: 0.05, g: 0.07, b: 0.18, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

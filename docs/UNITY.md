@@ -50,3 +50,44 @@ Rules it keeps:
   parse in C# and re-serialise to the **same JSON string** (key order included); malformed,
   oversized and out-of-order inputs behave like the TS parser.
 - `PersonaTests`, `CareTests`, `BehaviourTests`: ports of the TS behavioural suites.
+
+## The MyKin app: `unity/MyKin` (Unity 6000.6.7f1, URP)
+
+Everything is driven headlessly; no editor clicks are needed.
+
+```sh
+sh scripts/unity-batch.sh /tmp/u.log -executeMethod KinSetup.SetupProject      # URP, post, player, AR loaders
+sh scripts/unity-stj.sh                                                         # vendor System.Text.Json for IL2CPP
+sh scripts/unity-batch.sh /tmp/u.log -executeMethod KinBuilder.BuildAll         # creature: materials, Animator, prefab
+sh scripts/unity-batch.sh /tmp/u.log -executeMethod KinSceneBuilder.BuildMain   # Assets/Scenes/Main.unity
+GRAPHICS=1 sh scripts/unity-batch.sh /tmp/u.log -executeMethod KinProof.Capture        # creature proof renders
+GRAPHICS=1 sh scripts/unity-batch.sh /tmp/u.log -executeMethod KinProof.CaptureHabitat # habitat proof renders
+sh scripts/unity-ios.sh                                                         # iOS: export → LA install → sign → phone
+sh scripts/unity-batch.sh /tmp/u.log -executeMethod KinBuild.WebGL              # unity/MyKin/Build/WebGL
+```
+
+| Piece | Where | Notes |
+|---|---|---|
+| Packages | `Packages/manifest.json` | URP 17.6, AR Foundation/ARKit/ARCore 6.6.2, Input System, Animation Rigging, Cinemachine, core via `file:` |
+| Hero import | `Assets/Editor/KinArtImporter.cs` | generic rig, root motion on `root`, clip per take, loop flags from `kin_manifest.json` |
+| Body | `Kin/Fur` shader | PBR fur + crystal glow/fresnel (brighter at night) + fluff rim + cheek blush |
+| Fur | `Kin/FurShell` shader | 14 shells as extra materials on the same skinned renderer (free GPU skinning); gravity, wind, motion lag; crystals and eyes kept clear; `KinCreature.SetShells(n)` is the quality ladder |
+| Eyes | `Kin/Eye` shader | concept iris, pupil dilation, look offset, catchlights; **blink, sleepy, worried and "^ ^" happy are drawn in the material** (the lid geometry is hidden: its seams showed) |
+| Creature | `KinCreature.cs` | blinks, expressions, mouth/cheek/ear blendshapes, blush, fur force, head + eye look-at |
+| Life | `KinLife.cs` | `Kin.Core.Brain` decides 4×/s → animation + wandering; tap = hello, stroke = petting |
+| Habitat | `KinMeadow.cs`, `KinSky.cs` | instanced grass + glowing flowers, real-sun gradient sky with stars, fireflies at night |
+| AR | `KinAR.cs` | session, plane placement, LiDAR mesh as depth-only occluder + colliders, people occlusion, light estimation → key light, tier ladder, habitat fallback |
+| Live Activity | `Assets/Kin/Native/KINLive.cs` + iOS post-process | `KinBuild.AfterBuild` runs `scripts/ios-la-install.sh` on the Xcode export |
+
+Environment nuances:
+- `unity-batch.sh` defaults to `-nographics`; renders need `GRAPHICS=1` (a real Metal device).
+- In editor scripts never use `??` on Unity objects (fake null): `GetComponent<T>() ?? Add…` returns a destroyed-looking object.
+- The FBX's `_LOD0/_LOD1` mesh names make Unity create a `LODGroup` itself; reuse it.
+- Without the App Group registered on Apple's side, signing fails; `unity-ios.sh` retries with `CODE_SIGN_ENTITLEMENTS=` (bundled portrait in the Live Activity).
+
+### On-device status (iPhone 15 Pro Max, 2026-10-23)
+- `frametimes.log` (pull: `xcrun devicectl device copy from --device <udid> --domain-type appDataContainer --domain-identifier com.mutaafaziz.kin --source Documents/frametimes.log --destination .`):
+  first Unity build ran steady at 30 fps (p50 33.3 ms, p95 33.5–33.7 ms, p99 33.6–48 ms; one 2.4–3.4 s
+  start-up hitch while shaders compiled behind the veil). `KinBoot` now targets 60 fps and `KinQuality`
+  walks render scale → fur shells → MSAA to hold it; that build is installed but not yet measured in the foreground.
+- WebGL: 12.46 MB total (data 6.3 MB + wasm 6.0 MB + js), Brotli + decompression fallback, ASTC textures (1024; data maps 512), engine stripping, IL2CPP size.

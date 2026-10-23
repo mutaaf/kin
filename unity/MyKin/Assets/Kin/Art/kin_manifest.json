@@ -1,0 +1,343 @@
+{
+  "character": "KIN hero (Lumi line)",
+  "units": "metres; 1 Unity unit = 1 m",
+  "height_m": 0.28,
+  "forward": "Unity +Z (Blender -Y), Y up, transforms applied",
+  "rig": {
+    "type": "Generic (quadruped)",
+    "root_motion_bone": "root",
+    "bones": [
+      "root",
+      "hips",
+      "spine_01",
+      "spine_02",
+      "spine_03",
+      "chest",
+      "neck_01",
+      "neck_02",
+      "head",
+      "jaw",
+      "ear_01.L",
+      "ear_02.L",
+      "ear_03.L",
+      "ear_01.R",
+      "ear_02.R",
+      "ear_03.R",
+      "leg_front_upper.L",
+      "leg_front_lower.L",
+      "leg_front_foot.L",
+      "leg_front_toe.L",
+      "leg_front_upper.R",
+      "leg_front_lower.R",
+      "leg_front_foot.R",
+      "leg_front_toe.R",
+      "tail_01",
+      "tail_02",
+      "tail_03",
+      "tail_04",
+      "tail_05",
+      "tail_06",
+      "leg_back_upper.L",
+      "leg_back_lower.L",
+      "leg_back_foot.L",
+      "leg_back_toe.L",
+      "leg_back_upper.R",
+      "leg_back_lower.R",
+      "leg_back_foot.R",
+      "leg_back_toe.R"
+    ],
+    "max_influences": 4
+  },
+  "lods": [
+    {
+      "mesh": "KIN_LOD0",
+      "tris": 30000
+    },
+    {
+      "mesh": "KIN_LOD1",
+      "tris": 10000
+    }
+  ],
+  "parts": {
+    "eyes": [
+      "KIN_Eye_L",
+      "KIN_Eye_R"
+    ],
+    "lids": "KIN_Lids"
+  },
+  "blendshapes": {
+    "KIN_LOD0": [
+      "Mouth_Smile",
+      "Mouth_Open",
+      "Mouth_O",
+      "Cheeks_Puff",
+      "Ears_Relax"
+    ],
+    "KIN_LOD1": [
+      "Mouth_Smile",
+      "Mouth_Open",
+      "Mouth_O",
+      "Cheeks_Puff",
+      "Ears_Relax"
+    ],
+    "KIN_Lids": [
+      "Blink",
+      "HalfLid",
+      "Sleepy",
+      "HappySquint",
+      "Wide",
+      "Worried"
+    ]
+  },
+  "materials": {
+    "KIN_Body": {
+      "baseColor": "textures/kin_basecolor.png",
+      "normal": "textures/kin_normal.png",
+      "orm": "textures/kin_orm.png (R=AO, G=roughness, B=metallic)",
+      "crystalMask": "textures/kin_crystal_mask.png (1 = crystal: glossy, translucent, emissive mint)",
+      "furShells": "drive density/length from (1 - crystalMask)"
+    },
+    "KIN_Eye_L": {
+      "baseColor": "textures/kin_eye_L.png",
+      "baseColorNoCatchlights": "textures/kin_eye_L_nocatch.png"
+    },
+    "KIN_Eye_R": {
+      "baseColor": "textures/kin_eye_R.png",
+      "baseColorNoCatchlights": "textures/kin_eye_R_nocatch.png"
+    },
+    "eyeNotes": "iris art is cropped from the concept (art/source/front.png) and front-projected: UV (0.5,0.5) = pupil centre; dilate by scaling UVs about it. The default textures keep the painted catchlights; for live glossy highlights use the _nocatch textures plus a smooth clear-coat or a camera-facing catchlight sprite. Each eye's pivot is its eyeball centre (deep in the socket), so rotating KIN_Eye_L/R makes it look around; the caps are sized to stay seated.",
+    "KIN_Lid": {
+      "notes": "lids share KIN_Body: the lid body maps a fur patch just above each eye, the edge rows a dark lash texel. Upper lid sits flush with the socket lip; blendshapes: Blink, HalfLid, Sleepy, HappySquint (pair with Cheeks_Puff), Wide, Worried"
+    }
+  },
+  "clips": [
+    {
+      "name": "Idle",
+      "frames": 150,
+      "fps": 30,
+      "loop": true,
+      "additive": false,
+      "face": {}
+    },
+    {
+      "name": "Idle_Look",
+      "frames": 120,
+      "fps": 30,
+      "loop": true,
+      "additive": false,
+      "face": {}
+    },
+    {
+      "name": "Walk",
+      "frames": 32,
+      "fps": 30,
+      "loop": true,
+      "additive": false,
+      "face": {}
+    },
+    {
+      "name": "Trot",
+      "frames": 20,
+      "fps": 30,
+      "loop": true,
+      "additive": false,
+      "face": {}
+    },
+    {
+      "name": "Hop",
+      "frames": 24,
+      "fps": 30,
+      "loop": false,
+      "additive": false,
+      "face": {
+        "Wide": 0.6
+      }
+    },
+    {
+      "name": "Hop_Loop",
+      "frames": 18,
+      "fps": 30,
+      "loop": true,
+      "additive": false,
+      "face": {}
+    },
+    {
+      "name": "Sit_Enter",
+      "frames": 30,
+      "fps": 30,
+      "loop": false,
+      "additive": false,
+      "face": {}
+    },
+    {
+      "name": "Sit_Loop",
+      "frames": 90,
+      "fps": 30,
+      "loop": true,
+      "additive": false,
+      "face": {}
+    },
+    {
+      "name": "Sit_Exit",
+      "frames": 24,
+      "fps": 30,
+      "loop": false,
+      "additive": false,
+      "face": {}
+    },
+    {
+      "name": "Lie_Sleep",
+      "frames": 180,
+      "fps": 30,
+      "loop": true,
+      "additive": false,
+      "face": {
+        "Blink": 1.0
+      }
+    },
+    {
+      "name": "Fall_Asleep",
+      "frames": 90,
+      "fps": 30,
+      "loop": false,
+      "additive": false,
+      "face": {
+        "Sleepy": 1.0,
+        "Blink": "ramp"
+      }
+    },
+    {
+      "name": "Eat",
+      "frames": 60,
+      "fps": 30,
+      "loop": true,
+      "additive": false,
+      "face": {
+        "Mouth_Open": "chew"
+      }
+    },
+    {
+      "name": "Happy",
+      "frames": 48,
+      "fps": 30,
+      "loop": true,
+      "additive": false,
+      "face": {
+        "HappySquint": 1.0,
+        "Mouth_Smile": 1.0
+      }
+    },
+    {
+      "name": "Petted",
+      "frames": 90,
+      "fps": 30,
+      "loop": true,
+      "additive": false,
+      "face": {
+        "HappySquint": 0.9,
+        "Cheeks_Puff": 1.0,
+        "Mouth_Smile": 0.7
+      }
+    },
+    {
+      "name": "Head_Tilt",
+      "frames": 45,
+      "fps": 30,
+      "loop": false,
+      "additive": false,
+      "face": {
+        "Wide": 0.4
+      }
+    },
+    {
+      "name": "Shake_Off",
+      "frames": 40,
+      "fps": 30,
+      "loop": false,
+      "additive": false,
+      "face": {
+        "Blink": 0.8
+      }
+    },
+    {
+      "name": "Yawn",
+      "frames": 60,
+      "fps": 30,
+      "loop": false,
+      "additive": false,
+      "face": {
+        "Blink": 0.7,
+        "Mouth_O": 0.6
+      }
+    },
+    {
+      "name": "Sneeze",
+      "frames": 40,
+      "fps": 30,
+      "loop": false,
+      "additive": false,
+      "face": {
+        "Blink": 1.0
+      }
+    },
+    {
+      "name": "Tail_Wag",
+      "frames": 20,
+      "fps": 30,
+      "loop": true,
+      "additive": true,
+      "face": {}
+    },
+    {
+      "name": "Ear_Twitch",
+      "frames": 12,
+      "fps": 30,
+      "loop": false,
+      "additive": true,
+      "face": {}
+    },
+    {
+      "name": "Look_At_Camera",
+      "frames": 30,
+      "fps": 30,
+      "loop": false,
+      "additive": false,
+      "face": {
+        "Wide": 0.3
+      }
+    },
+    {
+      "name": "Paw_Up",
+      "frames": 45,
+      "fps": 30,
+      "loop": false,
+      "additive": false,
+      "face": {
+        "HappySquint": 0.6,
+        "Mouth_Smile": 0.8
+      }
+    },
+    {
+      "name": "Blink",
+      "frames": 8,
+      "fps": 30,
+      "loop": false,
+      "additive": false,
+      "procedural": "KIN_Lids blendshape Blink: 0 -> 1 over 2f, hold 2f, 1 -> 0 over 3f; every 2-6 s"
+    }
+  ],
+  "files": {
+    "fbx": "kin_hero.fbx",
+    "glb": "kin_hero.glb",
+    "textures": [
+      "kin_basecolor.png",
+      "kin_crystal_mask.png",
+      "kin_eye_L.png",
+      "kin_eye_L_nocatch.png",
+      "kin_eye_R.png",
+      "kin_eye_R_nocatch.png",
+      "kin_normal.png",
+      "kin_orm.png"
+    ]
+  }
+}
