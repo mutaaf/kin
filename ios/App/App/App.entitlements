@@ -2,10 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <!-- Shared with the Live Activity: state, pending care and the creature's portrait. -->
-  <key>com.apple.security.application-groups</key>
-  <array>
-    <string>group.com.mutaafaziz.kin</string>
-  </array>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.mutaafaziz.kin</string>
+	</array>
 </dict>
 </plist>
