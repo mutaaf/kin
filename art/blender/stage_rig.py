@@ -26,8 +26,8 @@ lod0 = bpy.data.objects["KIN_LOD0"]
 lod1 = bpy.data.objects["KIN_LOD1"]
 co = vert_coords(lod0.data)
 H = co[:, 2].max()
-eyeL = bpy.data.objects["KIN_Eye_L"].matrix_world.translation.copy()
-eyeR = bpy.data.objects["KIN_Eye_R"].matrix_world.translation.copy()
+eyeL, eyeR = (Vector(bpy.data.objects[n].get("kin_eye_anchor", bpy.data.objects[n].matrix_world.translation))
+              for n in ("KIN_Eye_L", "KIN_Eye_R"))  # the eye pivot sits deep in the socket; use its anchor
 eye_mid = (eyeL + eyeR) / 2
 gap = (eyeL - eyeR).length
 
