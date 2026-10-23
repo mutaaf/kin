@@ -22,16 +22,16 @@ interface Cloud {
 /** Sample a creature's surface: area-weighted across every visible mesh, in aurora-field space. */
 export function sampleKin(seed: number, count = 7000): Cloud {
   const parts = buildCreature(makeGenome(seed));
-  for (const l of parts.lids) l.visible = false;
   parts.root.updateMatrixWorld(true);
   const eyeMeshes = new Set<THREE.Object3D>();
-  for (const e of parts.eyes) e.traverse((o) => eyeMeshes.add(o));
+  for (const e of parts.eyes) eyeMeshes.add(e.mesh);
   const accentMeshes = new Set<THREE.Object3D>();
   parts.accent?.traverse((o) => accentMeshes.add(o));
   const meshes: { mesh: THREE.Mesh; area: number; kind: 'fur' | 'eye' | 'accent' }[] = [];
   parts.root.traverse((o) => {
     const m = o as THREE.Mesh;
-    if (!m.isMesh || !o.visible || !isVisible(o)) return;
+    // Fur shells are InstancedMesh offsets of the body; sampling them would blur the silhouette.
+    if (!m.isMesh || (m as THREE.InstancedMesh).isInstancedMesh || !o.visible || !isVisible(o)) return;
     const g = m.geometry.clone().applyMatrix4(m.matrixWorld);
     const area = surfaceArea(g);
     g.dispose();

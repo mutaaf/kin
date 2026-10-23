@@ -72,6 +72,17 @@ export async function startApp(slot: string) {
   void initNative();
   setHaptics(settings.sound);
   const view = new KinView(genome, stage);
+  view.voice.enabled = settings.sound;
+  view.reducedMotion = settings.reducedMotion;
+  view.setAge(kin.hatched ? (now0 - kin.bornAt) / 86_400_000 : 0);
+  // Warm the creature's shaders before it is first seen (fur shells, eyes): otherwise the first
+  // visible frame compiles them on the main thread, a visible hitch at the hatch. Invisible
+  // objects are skipped by compile, so show the root just for the compile pass.
+  {
+    const was = view.parts.root.visible;
+    view.parts.root.visible = true;
+    void stage.renderer.compileAsync(stage.scene, stage.camera).catch(() => {}).finally(() => (view.parts.root.visible = was));
+  }
   const guests = new Map<string, GuestView>();
   const hud = new Hud();
   // The world: physics, matter, autonomous objects and the care loop (src/world). Embedded trailer
@@ -507,13 +518,10 @@ export async function startApp(slot: string) {
     if (interacted) return;
     interacted = true;
     sfx.unlock();
+    view.voice.unlock();
     if (kin.hatched) hud.rail(true);
   };
-  const hitKin = (x: number, y: number) => {
-    if (!view.visible) return false;
-    const h = view.screenHit();
-    return Math.hypot(x - h.x, (y - h.y) * 0.9) < h.r;
-  };
+  const hitKin = (x: number, y: number) => view.visible && !!view.zoneAt(x, y);
   canvas.addEventListener('pointerdown', (e) => {
     onFirstTouch();
     hud.closeSheet();
@@ -524,8 +532,10 @@ export async function startApp(slot: string) {
   canvas.addEventListener('pointermove', (e) => {
     if (!down || !kin.hatched) return;
     down.moved += Math.abs(e.movementX) + Math.abs(e.movementY);
-    if (hitKin(e.clientX, e.clientY) && down.moved > 12) {
-      view.pet(0.06);
+    const zone = view.visible ? view.zoneAt(e.clientX, e.clientY) : null;
+    if (zone && down.moved > 12) {
+      // Petting responds to WHERE you touch: head pat, chin scratch, belly rub, ear, tail, back.
+      view.touch(zone, 0.06);
       view.look = stage.toWorld({ x: e.clientX, y: e.clientY }, 0.7);
       kin = { ...kin, drives: { ...kin.drives, social: Math.max(0, kin.drives.social - 0.01), comfort: Math.min(1, kin.drives.comfort + 0.01) }, bond: Math.min(1, kin.bond + 0.0015) };
       if (Date.now() - lastPurr > 1100) {
@@ -539,9 +549,10 @@ export async function startApp(slot: string) {
     if (!down || !kin.hatched) return (down = null);
     const tap = Date.now() - down.t < 350 && down.moved < 12;
     if (tap && down.onKin && !view.busy) {
-      sfx.chirp(0.9 + Math.random() * 0.25);
+      const zone = view.zoneAt(e.clientX, e.clientY);
       view.look = stage.toWorld({ x: e.clientX, y: e.clientY }, 1.2);
-      view.script([{ dur: 420, enter: () => ((view.mood = 'happy'), view.squashImpulse(0.55), view.earFlick(1.3)) }, { dur: 900 }]);
+      if (zone) view.touch(zone, 0.5);
+      view.say(view.action === 'sleep' ? 'grumble' : 'hello');
     } else if (tap && !view.busy && kin.placement.kind === 'home') {
       // "Look over there": it turns, and if curious enough, trots over.
       const p = stage.toWorld({ x: e.clientX, y: e.clientY }, 0);
@@ -638,6 +649,8 @@ export async function startApp(slot: string) {
       Object.assign(settings, patch);
       store.saveSettings(settings);
       sfx.enabled = settings.sound;
+      view.voice.enabled = settings.sound;
+      view.reducedMotion = settings.reducedMotion;
       setHaptics(settings.sound);
       hud.debugVisible(settings.debug);
       if ('preciseSky' in patch) void refreshSky();

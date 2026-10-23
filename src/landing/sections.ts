@@ -291,7 +291,6 @@ export function seedDemo(canvas: HTMLCanvasElement, label: HTMLElement, button: 
       current.dispose();
     }
     current = buildCreature(makeGenome(seed));
-    for (const l of current.lids) l.visible = false;
     scene.add(current.root);
     const g = makeGenome(seed);
     label.innerHTML = `<b>seed ${seed}</b> · ${suggestName(seed)} · ${g.ears} ears · ${g.tail} tail · ${g.accent === 'none' ? 'no accent' : g.accent}`;

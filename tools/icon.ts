@@ -44,12 +44,12 @@ rim.position.set(3, 2, -4);
 scene.add(key, rim);
 
 const k = buildCreature(makeGenome(seed));
-k.root.rotation.y = -0.25;
-k.head.rotation.set(-0.12, 0.18, 0.06);
+k.root.rotation.y = -0.08; // a hair off-axis: both eyes to camera, still dimensional
+k.head.rotation.set(-0.06, 0.05, 0.05); // a slight curious tilt
 scene.add(k.root);
 
 const cam = new THREE.PerspectiveCamera(mode === 'icon' ? 24 : 18, 1, 0.1, 50);
-cam.position.set(0, 0.8, mode === 'icon' ? 2.85 : 6.5);
+cam.position.set(0, 0.78, mode === 'icon' ? 3.0 : 6.5);
 cam.lookAt(0, mode === 'icon' ? 0.66 : 0.5, 0);
 renderer.render(scene, cam);
 document.title = 'ready';

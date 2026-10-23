@@ -41,7 +41,8 @@ export function kinPoints(seed: number, n = 2400): V3[] {
   const meshes: THREE.Mesh[] = [];
   parts.root.traverse((o) => {
     const m = o as THREE.Mesh;
-    if (m.isMesh && m.visible && m.geometry) meshes.push(m);
+    // The body surface only: fur shells are InstancedMesh offsets of it, and would blur the silhouette.
+    if (m.isMesh && m.visible && m.geometry && !(m as THREE.InstancedMesh).isInstancedMesh) meshes.push(m);
   });
   // Allocate samples by approximate surface area (bounding-sphere radius², scaled).
   const weights = meshes.map((m) => {

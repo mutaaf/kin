@@ -188,11 +188,12 @@ export class KinView {
   script(tasks: Task[]) {
     if (this.cur?.started) this.cur.task.exit?.();
     this.cur = null;
-    this.queue = [...tasks];
+    // Task lists come from several systems (brain, world actors, crossing); never queue a hole.
+    this.queue = tasks.filter(Boolean);
   }
 
   then(tasks: Task[]) {
-    this.queue.push(...tasks);
+    this.queue.push(...tasks.filter(Boolean));
   }
 
   // ───────────── brain-level behaviour (only when no script runs)
@@ -762,7 +763,10 @@ export class KinView {
 
     // Script runner. Beats run on the wall clock, not frame time, so a slow device stays in
     // sync with the other screen (and a late start joins mid-beat instead of drifting).
-    if (!this.cur && this.queue.length) this.cur = { task: this.queue.shift()!, t: 0, started: false };
+    while (!this.cur && this.queue.length) {
+      const task = this.queue.shift();
+      if (task) this.cur = { task, t: 0, started: false };
+    }
     if (this.cur) {
       const c = this.cur;
       if (!c.started && (c.task.at === undefined || now >= c.task.at)) {
