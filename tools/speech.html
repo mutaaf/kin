@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KIN speech sheet</title>
+    <style>
+      body { margin: 0; overflow: hidden; }
+      #bg { position: fixed; inset: 0; background: linear-gradient(180deg, #8fa0f0 0%, #c9d3f6 48%, #f2efe8 50%, #9fd2b6 51%, #7fbf9c 100%); }
+      .head { position: fixed; width: 96px; height: 92px; margin: -46px 0 0 -48px; border-radius: 50% 50% 46% 46%; box-shadow: inset -10px -14px 22px rgba(0,0,0,.12), 0 10px 18px -8px rgba(0,0,0,.3); }
+      .head::before, .head::after { content: ''; position: absolute; top: 34px; width: 18px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff 0 18%, #2a1d33 22%); }
+      .head::before { left: 24px; }
+      .head::after { right: 24px; }
+      .lab { position: fixed; transform: translate(-50%, 54px); font: 600 10px system-ui; letter-spacing: .14em; text-transform: uppercase; color: #234; opacity: .55; }
+    </style>
+  </head>
+  <body>
+    <div id="bg"></div>
+    <div id="hud"></div>
+    <script type="module" src="./speech.ts"></script>
+  </body>
+</html>

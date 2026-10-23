@@ -5,7 +5,10 @@
 //                        land in the same one. The Lobby pairs devices by stitch swipe and then
 //                        relays protocol envelopes within each paired room.
 //   POST /kin/api/think  { card, provider, model } (+ x-kin-key for BYOK) → server-sent events:
-//                        prompt → token… → done { thought | null, errors, usage, cost, ms, ttft }
+//                        prompt → token… → done { thought | null, result, errors, usage, cost, ms, ttft }
+//   POST /kin/api/ask    { card, question, … } → same stream; done.result = { answer, mood, act }
+//   POST /kin/api/analyze { card, … }          → same stream; done.result = { becoming, reading, favorites, motto }
+//   POST /kin/api/snack  { topic, … }          → same stream; done.result = { name, flavor, weights, line }
 //   POST /kin/api/models { provider: 'auto' | id } + x-kin-key → { provider, models, suggested }
 //
 // The relay is dumb on purpose. It never interprets game state, never stores creatures, and
@@ -13,7 +16,10 @@
 // (src/session/cross.ts).
 
 import { matchStitch, type StitchEvent } from '../stitch/match';
-import { cleanCard, parseThought, SYSTEM, userPrompt } from '../ai/schema';
+import {
+  analysisPrompt, ANALYSIS_SYSTEM, ASK_SYSTEM, askPrompt, cleanCard, cleanQuestion, cleanTopic, parseAnalysis, parseAnswer,
+  parseSnack, parseThought, SNACK_SYSTEM, snackPrompt, SYSTEM, userPrompt,
+} from '../ai/schema';
 import { detectProvider } from '../ai/detect';
 import { costUsd, describeError, EDGE_MODELS, listModels, pickModel, PROVIDERS, stream, type ProviderId, type Usage } from './ai';
 
@@ -45,12 +51,13 @@ export default {
       return stub.fetch(request);
     }
     if (url.pathname === '/kin/api/health') return Response.json({ ok: true });
-    if (url.pathname === '/kin/api/think' || url.pathname === '/kin/api/models') {
+    const kind = DIRECTOR_PATHS[url.pathname];
+    if (kind || url.pathname === '/kin/api/models') {
       // The iOS/iPad app (capacitor://localhost) and local dev call the API cross-origin.
       const cors = corsHeaders(request.headers.get('origin'));
       if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
       if (request.method !== 'POST') return new Response('method', { status: 405, headers: cors });
-      const res = url.pathname === '/kin/api/think' ? await think(request, env) : await models(request);
+      const res = kind ? await director(request, env, kind) : await models(request);
       for (const [k, v] of Object.entries(cors)) res.headers.set(k, v);
       return res;
     }
@@ -249,11 +256,40 @@ async function allow(env: Env, key: string, max: number): Promise<boolean> {
 const hour = () => new Date().toISOString().slice(0, 13);
 const day = () => new Date().toISOString().slice(0, 10);
 
-async function think(req: Request, env: Env): Promise<Response> {
+type DirectorKind = 'think' | 'ask' | 'analyze' | 'snack';
+const DIRECTOR_PATHS: Record<string, DirectorKind> = {
+  '/kin/api/think': 'think', '/kin/api/ask': 'ask', '/kin/api/analyze': 'analyze', '/kin/api/snack': 'snack',
+};
+
+/**
+ * Every director call has the same shape: sanitise the input, rate-limit, build the prompt on the
+ * server (never from client text), stream the model, validate the answer, and send it (or the
+ * reasons it was refused, so the client falls back to a local line).
+ */
+async function director(req: Request, env: Env, kind: DirectorKind): Promise<Response> {
   const t0 = Date.now();
-  const body = (await req.json().catch(() => null)) as { card?: unknown; provider?: string; model?: string } | null;
-  const card = cleanCard(body?.card);
-  if (!card) return Response.json({ error: 'card' }, { status: 400 });
+  const body = (await req.json().catch(() => null)) as { card?: unknown; question?: unknown; topic?: unknown; provider?: string; model?: string } | null;
+  let system = SYSTEM;
+  let user = '';
+  let parse: (t: string) => { ok: true; value: unknown } | { ok: false; errors: string[] } = parseThought;
+  let maxTokens = 300;
+  if (kind === 'snack') {
+    const topic = cleanTopic(body?.topic);
+    if (!topic) return Response.json({ error: 'topic' }, { status: 400 });
+    [system, user, parse] = [SNACK_SYSTEM, snackPrompt(topic), parseSnack];
+  } else {
+    const card = cleanCard(body?.card);
+    if (!card) return Response.json({ error: 'card' }, { status: 400 });
+    if (kind === 'think') user = userPrompt(card);
+    if (kind === 'ask') {
+      const q = cleanQuestion(body?.question);
+      if (!q) return Response.json({ error: 'question' }, { status: 400 });
+      [system, user, parse] = [ASK_SYSTEM, askPrompt(card, q), parseAnswer];
+    }
+    if (kind === 'analyze') {
+      [system, user, parse, maxTokens] = [ANALYSIS_SYSTEM, analysisPrompt(card), parseAnalysis, 520];
+    }
+  }
   const provider: ProviderId = body?.provider && body.provider in PROVIDERS ? (body.provider as ProviderId) : 'edge';
   const key = req.headers.get('x-kin-key') || '';
   if (PROVIDERS[provider].needsKey && !KEY_RE.test(key)) return Response.json({ error: 'key' }, { status: 400 });
@@ -266,7 +302,6 @@ async function think(req: Request, env: Env): Promise<Response> {
 
   const model = provider === 'edge' ? (EDGE_MODELS.includes(body?.model ?? '') ? body!.model! : EDGE_MODELS[0]!) : body?.model || (provider === 'anthropic' ? 'claude-haiku-5-5' : '');
   if (!model) return Response.json({ error: 'model' }, { status: 400 });
-  const user = userPrompt(card);
   const { readable, writable } = new TransformStream();
   const w = writable.getWriter();
   const enc = new TextEncoder();
@@ -274,11 +309,11 @@ async function think(req: Request, env: Env): Promise<Response> {
   const colo = (req as Request & { cf?: { colo?: string } }).cf?.colo ?? null;
 
   (async () => {
-    await send('prompt', { provider, model, colo, system: SYSTEM, user });
+    await send('prompt', { kind, provider, model, colo, system, user });
     let text = '';
     let ttft = 0;
     try {
-      const it = stream({ provider, env, key, model, system: SYSTEM, user });
+      const it = stream({ provider, env, key, model, system, user, maxTokens });
       let usage: Usage = { inTokens: 0, outTokens: 0, neurons: 0 };
       for (;;) {
         const r = await it.next();
@@ -290,9 +325,13 @@ async function think(req: Request, env: Env): Promise<Response> {
         text += r.value.text;
         await send('token', { text: r.value.text });
       }
-      const parsed = parseThought(text);
+      const parsed = parse(text);
+      const result = parsed.ok ? parsed.value : null;
       await send('done', {
-        thought: parsed.ok ? parsed.value : null,
+        kind,
+        // `thought` kept for clients from before /ask and /analyze existed.
+        thought: kind === 'think' ? result : undefined,
+        result,
         errors: parsed.ok ? [] : parsed.errors,
         usage, cost: costUsd(model, usage.inTokens, usage.outTokens), ms: Date.now() - t0, ttft,
       });
