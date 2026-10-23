@@ -9,7 +9,7 @@ const headers = {
   closeBundle() {
     writeFileSync(
       'dist/_headers',
-      ['/kin/', '/kin/index.html', '/kin/about/', '/kin/about/index.html'].map((p) => `${p}\n  Cache-Control: public, max-age=0, must-revalidate, no-transform\n`).join('') +
+      ['/kin/', '/kin/index.html', '/kin/about/', '/kin/about/index.html', '/kin/play/', '/kin/play/index.html'].map((p) => `${p}\n  Cache-Control: public, max-age=0, must-revalidate, no-transform\n`).join('') +
         '/kin/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n',
     );
   },

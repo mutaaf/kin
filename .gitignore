@@ -8,3 +8,5 @@ native-dist
 .env.testflight
 *.p8
 .claude/
+public/play/Build/
+public/play/TemplateData/

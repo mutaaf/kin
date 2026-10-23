@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0B0D12" />
+    <meta name="robots" content="noindex" />
+    <title>MyKin · 3D preview</title>
+    <style>
+      :root { --graphite: #0b0d12; --porcelain: #f6f6f3; --mint: #6ee5ca; --muted: rgba(246, 246, 243, 0.6); }
+      html, body { margin: 0; height: 100%; background: var(--graphite); color: var(--porcelain); overflow: hidden; overscroll-behavior: none; }
+      body { font: 14px/1.4 ui-rounded, -apple-system, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+      #stage, canvas { position: fixed; inset: 0; width: 100vw; height: 100dvh; display: block; outline: none; touch-action: none; }
+      #veil { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(120% 90% at 50% 40%, #151a28, var(--graphite) 70%); transition: opacity 0.6s ease; z-index: 2; }
+      #veil.gone { opacity: 0; pointer-events: none; }
+      .card { text-align: center; width: min(320px, 80vw); }
+      .mark { font: 600 34px/1 Georgia, 'Iowan Old Style', serif; letter-spacing: -0.01em; margin-bottom: 6px; }
+      .sub { color: var(--muted); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 22px; }
+      .bar { height: 3px; border-radius: 3px; background: rgba(246, 246, 243, 0.1); overflow: hidden; }
+      .fill { height: 100%; width: 0; background: var(--mint); box-shadow: 0 0 12px var(--mint); transition: width 0.25s ease; }
+      .note { color: var(--muted); font-size: 12px; margin-top: 14px; min-height: 1.4em; }
+      .err { color: #ffb4a8; }
+      .tag { position: fixed; left: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 1; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); background: rgba(11, 13, 18, 0.55); padding: 6px 10px; border-radius: 999px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+      .tag a { color: var(--mint); text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"><canvas id="unity-canvas" tabindex="-1" aria-label="MyKin"></canvas></div>
+    <div id="veil" role="status" aria-live="polite">
+      <div class="card">
+        <div class="mark">MyKin</div>
+        <div class="sub">3D preview</div>
+        <div class="bar"><div class="fill" id="fill"></div></div>
+        <div class="note" id="note">Waking your KIN…</div>
+      </div>
+    </div>
+    <div class="tag">Preview · <a href="../">classic</a> · <a href="../about/">about</a></div>
+    <script>
+      // Unity WebGL build (unity/MyKin). Compressed with Brotli + decompression fallback, so it
+      // works without special server headers. Full-screen, crisp at the device pixel ratio.
+      const canvas = document.getElementById('unity-canvas');
+      const fill = document.getElementById('fill');
+      const note = document.getElementById('note');
+      const fit = () => {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(innerWidth * dpr);
+        canvas.height = Math.round(innerHeight * dpr);
+      };
+      fit();
+      addEventListener('resize', fit);
+      const config = {
+        arguments: [],
+        dataUrl: 'Build/WebGL.data.unityweb',
+        frameworkUrl: 'Build/WebGL.framework.js.unityweb',
+        codeUrl: 'Build/WebGL.wasm.unityweb',
+        streamingAssetsUrl: 'StreamingAssets',
+        companyName: 'Mutaaf Aziz',
+        productName: 'MyKin',
+        productVersion: '0.2.0',
+        matchWebGLToCanvasSize: false,
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+        showBanner: (msg, type) => { if (type === 'error') { note.textContent = msg; note.className = 'note err'; } },
+      };
+      const script = document.createElement('script');
+      script.src = 'Build/WebGL.loader.js';
+      script.onload = () => {
+        createUnityInstance(canvas, config, (p) => {
+          fill.style.width = `${Math.round(p * 100)}%`;
+          if (p > 0.9) note.textContent = 'Almost there…';
+        })
+          .then(() => document.getElementById('veil').classList.add('gone'))
+          .catch((e) => { note.textContent = 'This browser could not start the 3D preview. ' + e; note.className = 'note err'; });
+      };
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
