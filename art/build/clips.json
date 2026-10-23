@@ -1,0 +1,216 @@
+[
+  {
+    "name": "Idle",
+    "frames": 150,
+    "fps": 30,
+    "loop": true,
+    "additive": false,
+    "face": {}
+  },
+  {
+    "name": "Idle_Look",
+    "frames": 120,
+    "fps": 30,
+    "loop": true,
+    "additive": false,
+    "face": {}
+  },
+  {
+    "name": "Walk",
+    "frames": 32,
+    "fps": 30,
+    "loop": true,
+    "additive": false,
+    "face": {}
+  },
+  {
+    "name": "Trot",
+    "frames": 20,
+    "fps": 30,
+    "loop": true,
+    "additive": false,
+    "face": {}
+  },
+  {
+    "name": "Hop",
+    "frames": 24,
+    "fps": 30,
+    "loop": false,
+    "additive": false,
+    "face": {
+      "Wide": 0.6
+    }
+  },
+  {
+    "name": "Hop_Loop",
+    "frames": 18,
+    "fps": 30,
+    "loop": true,
+    "additive": false,
+    "face": {}
+  },
+  {
+    "name": "Sit_Enter",
+    "frames": 30,
+    "fps": 30,
+    "loop": false,
+    "additive": false,
+    "face": {}
+  },
+  {
+    "name": "Sit_Loop",
+    "frames": 90,
+    "fps": 30,
+    "loop": true,
+    "additive": false,
+    "face": {}
+  },
+  {
+    "name": "Sit_Exit",
+    "frames": 24,
+    "fps": 30,
+    "loop": false,
+    "additive": false,
+    "face": {}
+  },
+  {
+    "name": "Lie_Sleep",
+    "frames": 180,
+    "fps": 30,
+    "loop": true,
+    "additive": false,
+    "face": {
+      "Blink": 1.0
+    }
+  },
+  {
+    "name": "Fall_Asleep",
+    "frames": 90,
+    "fps": 30,
+    "loop": false,
+    "additive": false,
+    "face": {
+      "Sleepy": 1.0,
+      "Blink": "ramp"
+    }
+  },
+  {
+    "name": "Eat",
+    "frames": 60,
+    "fps": 30,
+    "loop": true,
+    "additive": false,
+    "face": {
+      "Mouth_Open": "chew"
+    }
+  },
+  {
+    "name": "Happy",
+    "frames": 48,
+    "fps": 30,
+    "loop": true,
+    "additive": false,
+    "face": {
+      "HappySquint": 1.0,
+      "Mouth_Smile": 1.0
+    }
+  },
+  {
+    "name": "Petted",
+    "frames": 90,
+    "fps": 30,
+    "loop": true,
+    "additive": false,
+    "face": {
+      "HappySquint": 0.9,
+      "Cheeks_Puff": 1.0,
+      "Mouth_Smile": 0.7
+    }
+  },
+  {
+    "name": "Head_Tilt",
+    "frames": 45,
+    "fps": 30,
+    "loop": false,
+    "additive": false,
+    "face": {
+      "Wide": 0.4
+    }
+  },
+  {
+    "name": "Shake_Off",
+    "frames": 40,
+    "fps": 30,
+    "loop": false,
+    "additive": false,
+    "face": {
+      "Blink": 0.8
+    }
+  },
+  {
+    "name": "Yawn",
+    "frames": 60,
+    "fps": 30,
+    "loop": false,
+    "additive": false,
+    "face": {
+      "Blink": 0.7,
+      "Mouth_O": 0.6
+    }
+  },
+  {
+    "name": "Sneeze",
+    "frames": 40,
+    "fps": 30,
+    "loop": false,
+    "additive": false,
+    "face": {
+      "Blink": 1.0
+    }
+  },
+  {
+    "name": "Tail_Wag",
+    "frames": 20,
+    "fps": 30,
+    "loop": true,
+    "additive": true,
+    "face": {}
+  },
+  {
+    "name": "Ear_Twitch",
+    "frames": 12,
+    "fps": 30,
+    "loop": false,
+    "additive": true,
+    "face": {}
+  },
+  {
+    "name": "Look_At_Camera",
+    "frames": 30,
+    "fps": 30,
+    "loop": false,
+    "additive": false,
+    "face": {
+      "Wide": 0.3
+    }
+  },
+  {
+    "name": "Paw_Up",
+    "frames": 45,
+    "fps": 30,
+    "loop": false,
+    "additive": false,
+    "face": {
+      "HappySquint": 0.6,
+      "Mouth_Smile": 0.8
+    }
+  },
+  {
+    "name": "Blink",
+    "frames": 8,
+    "fps": 30,
+    "loop": false,
+    "additive": false,
+    "procedural": "KIN_Lids blendshape Blink: 0 -> 1 over 2f, hold 2f, 1 -> 0 over 3f; every 2-6 s"
+  }
+]

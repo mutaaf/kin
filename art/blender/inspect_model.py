@@ -1,6 +1,6 @@
 # Headless Blender stage 1: import the generated hero model, normalise it, report stats, and
 # render a 4-angle turntable so we can judge it before rigging.
-#   blender -b -P art/blender/inspect.py -- <in.glb> <out_dir>
+#   blender -b -P art/blender/inspect_model.py -- <in.glb> <out_dir>
 import math
 import sys
 
