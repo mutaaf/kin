@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>MyKin · shell harness</title>
+  </head>
+  <body>
+    <div id="app">
+      <div id="stage" role="img" aria-label="Harness stage"></div>
+      <div id="hud">
+        <header class="top">
+          <button class="who" id="who" type="button" aria-label="Your KIN: open the identity card">
+            <span class="brand">MyKin</span><span class="name" id="name"></span><span class="temper" id="temper"></span>
+          </button>
+          <div class="status-line"><span class="sky-line" id="skyline"></span><span class="clock" id="clock"></span></div>
+        </header>
+        <div class="speech-layer" id="speech-layer"></div>
+        <div class="status" id="status" role="status"></div>
+        <div class="hint" id="hint"></div>
+        <aside class="prompt" id="prompt" hidden></aside>
+        <aside class="postcard" id="postcard" hidden></aside>
+        <div id="shell"></div>
+        <section class="sheet" id="sheet" hidden role="dialog"></section>
+        <div class="toast" id="toast" role="status"></div>
+        <pre class="debug" id="debug" hidden></pre>
+      </div>
+    </div>
+    <script type="module" src="./shell.ts"></script>
+  </body>
+</html>

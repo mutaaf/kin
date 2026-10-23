@@ -1,0 +1,220 @@
+/* MyKin shell. Pixar-quality creature, Tesla-quality interface: restrained translucent glass,
+   precise type, calm motion. The interface reveals itself when touched and recedes when idle. */
+
+.mk-shell { position: fixed; inset: 0; pointer-events: none; z-index: 6; --glass: rgba(14, 16, 24, 0.5); --glass-hi: rgba(14, 16, 24, 0.72); --edge: rgba(255, 255, 255, 0.1); --edge-hi: rgba(255, 255, 255, 0.18); }
+.mk-shell > * { pointer-events: auto; }
+.mk-shell svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.mk-shell svg .fx { stroke-width: 1.6; }
+.mk-shell svg .dot { fill: currentColor; stroke: none; }
+.mk-shell button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.mk-shell button:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
+
+/* Glass, with a hairline highlight on top: depth without heaviness. */
+.mk-glass, .mk-dock, .mk-card, .mk-sheet, .mk-nav {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)) , var(--glass);
+  border: 1px solid var(--edge);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 18px 50px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(22px) saturate(1.35);
+  -webkit-backdrop-filter: blur(22px) saturate(1.35);
+}
+
+/* ── Receding: hidden until hatched; visible while awake ─────────────────────────────────── */
+.mk-dock, .mk-nav, .mk-side, .mk-strip {
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.5s var(--ease), transform 0.6s var(--ease), visibility 0s linear 0.6s;
+}
+.mk-shell.ready.awake .mk-dock, .mk-shell.ready.awake .mk-nav, .mk-shell.ready.awake .mk-side, .mk-shell.ready.awake .mk-strip,
+.mk-shell.ready.sheet-open .mk-dock {
+  opacity: 1; visibility: visible; transform: none; transition: opacity 0.4s var(--ease), transform 0.5s var(--ease), visibility 0s;
+}
+/* Party and crossings: the camera pulls back and every control steps aside. */
+.mk-shell[data-presence='party'] .mk-dock, .mk-shell[data-presence='party'] .mk-nav, .mk-shell[data-presence='party'] .mk-side, .mk-shell[data-presence='party'] .mk-strip { opacity: 0 !important; visibility: hidden !important; }
+
+/* ── The floating action bar (phone first) ─────────────────────────────────────────────────── */
+.mk-dock {
+  position: fixed; left: 50%; bottom: calc(14px + var(--safe-b)); transform: translate(-50%, 18px);
+  display: flex; gap: 2px; padding: 6px; border-radius: 26px; max-width: calc(100vw - 20px);
+}
+.mk-shell.ready.awake .mk-dock, .mk-shell.ready.sheet-open .mk-dock { transform: translate(-50%, 0); }
+.mk-act {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  width: 58px; height: 62px; border: 0; border-radius: 20px; background: transparent; color: rgba(246, 246, 243, 0.86);
+  transition: background 0.25s, transform 0.25s var(--ease);
+}
+.mk-act .ic {
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 12px; color: var(--c);
+  background: radial-gradient(120% 120% at 30% 20%, color-mix(in srgb, var(--c) 34%, transparent), color-mix(in srgb, var(--c) 10%, transparent));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 30%, transparent) inset, 0 6px 16px color-mix(in srgb, var(--c) 22%, transparent);
+}
+.mk-act .ic svg { width: 20px; height: 20px; }
+.mk-act .lb { font-size: 10.5px; letter-spacing: 0.02em; font-weight: 500; }
+.mk-act:hover { background: rgba(255, 255, 255, 0.06); }
+.mk-act:active { transform: scale(0.94); }
+
+/* ── Sheets (Explore, identity, coming soon) ───────────────────────────────────────────────── */
+.mk-sheet {
+  position: fixed; left: 50%; bottom: calc(92px + var(--safe-b)); width: min(440px, calc(100vw - 24px)); max-height: min(68vh, 620px);
+  overflow: auto; overscroll-behavior: contain; padding: 18px; border-radius: 26px; color: var(--porcelain);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)), var(--glass-hi);
+  opacity: 0; transform: translate(-50%, 16px) scale(0.98); transition: opacity 0.28s var(--ease), transform 0.36s var(--ease);
+}
+.mk-sheet.on { opacity: 1; transform: translate(-50%, 0) scale(1); }
+.mk-sheet:focus { outline: none; }
+.mk-sheet header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.mk-sheet h2, .mk-card h2 { margin: 0; font-family: var(--display); font-weight: 500; font-size: 24px; letter-spacing: -0.01em; font-variation-settings: 'SOFT' 100, 'WONK' 1; }
+.mk-sub { margin: 6px 0 12px; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
+.mk-label { margin: 16px 0 8px; font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.mk-x { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--edge); background: rgba(255, 255, 255, 0.05); flex: none; }
+.mk-x svg { width: 16px; height: 16px; }
+.mk-soon em { display: inline-block; font-style: normal; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; padding: 4px 9px; border-radius: 999px; color: #ffd27a; background: rgba(255, 210, 122, 0.12); border: 1px solid rgba(255, 210, 122, 0.25); }
+
+/* Habitat cards: painterly gradient tiles, honest lock states. */
+.mk-habs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.mk-hab {
+  position: relative; display: grid; align-content: end; min-height: 96px; padding: 10px 11px; border-radius: 16px; text-align: left; overflow: hidden;
+  border: 1px solid var(--edge); background: #10131c; isolation: isolate; transition: transform 0.25s var(--ease), border-color 0.25s;
+}
+.mk-hab .art { position: absolute; inset: 0; z-index: -1; opacity: 0.85; filter: saturate(1.1); }
+.mk-hab::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, transparent 35%, rgba(8, 10, 16, 0.78)); }
+.mk-hab .nm { font-family: var(--display); font-size: 16px; }
+.mk-hab small { display: flex; gap: 4px; align-items: center; font-size: 11px; color: rgba(246, 246, 243, 0.72); }
+.mk-hab small svg { width: 12px; height: 12px; }
+.mk-hab.on { border-color: rgba(110, 229, 202, 0.75); box-shadow: 0 0 0 1px rgba(110, 229, 202, 0.5), 0 0 22px rgba(110, 229, 202, 0.25); }
+.mk-hab.locked .art { filter: grayscale(0.55) brightness(0.7); }
+.mk-hab:not(.locked):hover { transform: translateY(-2px); }
+
+.mk-rows { display: grid; gap: 8px; margin-top: 14px; }
+.mk-row { display: flex; gap: 12px; align-items: center; text-align: left; padding: 12px; border-radius: 16px; border: 1px solid var(--edge); background: rgba(255, 255, 255, 0.04); }
+.mk-row > svg { flex: none; color: var(--mint); }
+.mk-row b { display: block; font-weight: 600; font-size: 14px; }
+.mk-row small { color: var(--muted); font-size: 12px; }
+.mk-row[aria-disabled='true'] { opacity: 0.55; }
+
+/* ── Identity card ─────────────────────────────────────────────────────────────────────────── */
+.mk-card { border-radius: 24px; padding: 18px; color: var(--porcelain); }
+.mk-identity p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.mk-identity p span { color: var(--porcelain); margin-left: 6px; }
+.mk-xp { height: 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.1); margin: 14px 0 16px; overflow: hidden; }
+.mk-xp i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #6ee5ca, #9ea8ff); box-shadow: 0 0 12px rgba(110, 229, 202, 0.6); }
+.mk-rings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mk-ring { position: relative; display: grid; justify-items: center; gap: 2px; text-align: center; }
+.mk-ring svg { width: 58px; height: 58px; transform: rotate(-90deg); }
+.mk-ring .track { fill: none; stroke: rgba(255, 255, 255, 0.1); stroke-width: 3.5; }
+.mk-ring .fill { fill: none; stroke-width: 3.5; stroke-linecap: round; transition: stroke-dasharray 0.8s var(--ease); }
+.mk-ring .ico { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); }
+.mk-ring .ico svg { width: 20px; height: 20px; transform: none; }
+.mk-ring b { font-size: 12px; font-weight: 600; margin-top: 4px; }
+.mk-ring small { font-size: 11.5px; color: var(--muted); text-transform: capitalize; }
+.mk-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 16px; }
+.mk-quick button { display: grid; justify-items: center; gap: 5px; padding: 10px 2px; border-radius: 14px; border: 1px solid var(--edge); background: rgba(255, 255, 255, 0.04); font-size: 10.5px; color: rgba(246, 246, 243, 0.85); }
+.mk-quick svg { color: var(--mint); }
+
+/* Persona blend: who this KIN is becoming. */
+.mk-persona { display: grid; gap: 7px; margin-top: 14px; }
+.mk-arch { display: grid; grid-template-columns: 74px 1fr 22px; align-items: center; gap: 8px; font-size: 12px; }
+.mk-arch span { color: rgba(246, 246, 243, 0.86); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk-arch i { height: 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.mk-arch i b { display: block; height: 100%; border-radius: 5px; background: linear-gradient(90deg, #9ea8ff, #e9af6b); }
+.mk-arch small { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mk-why { margin: 4px 0 0; font-family: var(--display); font-style: italic; font-size: 13.5px; color: rgba(246, 246, 243, 0.78); }
+
+/* Ask / feed-a-topic fields. */
+.mk-ask { display: grid; gap: 8px; margin-top: 14px; }
+.mk-ask .mk-label { margin: 6px 0 0; }
+.mk-field { position: relative; }
+.mk-field input {
+  width: 100%; height: 48px; padding: 0 56px 0 14px; border-radius: 14px; border: 1px solid var(--edge-hi); background: rgba(255, 255, 255, 0.05);
+  color: var(--porcelain); font: 15px var(--ui); outline: none; transition: border-color 0.2s, background 0.2s;
+}
+.mk-field input:focus { border-color: var(--mint); background: rgba(255, 255, 255, 0.08); }
+.mk-field input::placeholder { color: rgba(246, 246, 243, 0.42); }
+.mk-field small { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mk-ask .btn { justify-self: start; }
+.mk-ask .btn:disabled { opacity: 0.45; }
+
+/* Today: living memories. */
+.mk-today header { display: flex; justify-content: space-between; align-items: baseline; }
+.mk-today h3 { margin: 0; font-family: var(--display); font-weight: 500; font-size: 18px; }
+.mk-link { border: 0; background: none; color: var(--mint); font-size: 12.5px; padding: 0; }
+.mk-today ol { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
+.mk-today li { display: flex; gap: 10px; align-items: center; }
+.mk-today .chip { --h: 168; flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; color: hsl(var(--h) 80% 78%); background: hsl(var(--h) 60% 50% / 0.16); border: 1px solid hsl(var(--h) 60% 60% / 0.25); }
+.mk-today .chip svg { width: 18px; height: 18px; }
+.mk-today p { margin: 0; font-size: 13px; line-height: 1.3; }
+.mk-today small { font-size: 11.5px; color: var(--muted); }
+.mk-today .empty p { color: var(--muted); }
+
+/* Desktop-only furniture stays out of the phone layout. */
+.mk-nav, .mk-side, .mk-strip { display: none; }
+.mk-clockwrap { display: none; }
+
+/* ── Camera / portrait mode ────────────────────────────────────────────────────────────────── */
+body.mk-photo #hud > *:not(.mk-photo-ui), body.mk-photo .care-layer { opacity: 0 !important; pointer-events: none !important; transition: opacity 0.4s var(--ease); }
+.mk-photo-ui { position: fixed; inset: 0; z-index: 40; pointer-events: none; }
+.mk-photo-ui > * { pointer-events: auto; }
+.mk-photo-ui .mk-x { position: absolute; top: calc(16px + var(--safe-t)); right: 16px; background: rgba(14, 16, 24, 0.5); color: #fff; backdrop-filter: blur(12px); }
+.mk-photo-ui .mk-x svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.mk-shutter { position: absolute; left: 50%; bottom: calc(28px + var(--safe-b)); transform: translateX(-50%); width: 74px; height: 74px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.92); background: transparent; display: grid; place-items: center; }
+.mk-shutter i { width: 58px; height: 58px; border-radius: 50%; background: rgba(255, 255, 255, 0.92); transition: transform 0.15s; }
+.mk-shutter:active i { transform: scale(0.88); }
+.mk-photo-hint { position: absolute; left: 50%; bottom: calc(112px + var(--safe-b)); transform: translateX(-50%); margin: 0; font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #fffc; text-shadow: 0 1px 8px #0006; }
+/* A soft, never-bright capture cue (no flashes: accessibility). */
+.mk-photo-ui::after { content: ''; position: absolute; inset: 0; background: rgba(255, 255, 255, 0.0); pointer-events: none; transition: background 0.4s; }
+.mk-photo-ui.flash::after { background: rgba(255, 255, 255, 0.16); transition: background 0.05s; }
+
+/* ── Large screens: the concept's full layout (still receding when idle) ───────────────────── */
+@media (min-width: 1024px) and (min-height: 680px) {
+  .mk-nav, .mk-side, .mk-strip { display: block; }
+  .mk-nav {
+    position: fixed; left: 20px; top: 84px; width: 190px; padding: 10px; border-radius: 24px; transform: translateX(-12px);
+    display: grid; gap: 2px;
+  }
+  .mk-navitem {
+    display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 14px; border: 0; background: transparent;
+    color: rgba(246, 246, 243, 0.82); font-size: 14.5px; text-align: left; transition: background 0.2s;
+  }
+  .mk-navitem:hover { background: rgba(255, 255, 255, 0.06); }
+  .mk-navitem.on { background: linear-gradient(90deg, rgba(110, 229, 202, 0.16), rgba(110, 229, 202, 0.04)); color: var(--porcelain); box-shadow: 0 0 0 1px rgba(110, 229, 202, 0.22) inset; }
+  .mk-navitem em { margin-left: auto; font-style: normal; font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 210, 122, 0.8); }
+  .mk-side { position: fixed; right: 20px; top: 84px; width: 300px; display: grid; gap: 14px; transform: translateX(12px); }
+  .mk-strip {
+    position: fixed; left: 20px; right: 20px; bottom: 16px; display: flex; gap: 12px; overflow-x: auto; padding: 4px; transform: translateY(14px);
+    scrollbar-width: none;
+  }
+  .mk-strip .mk-hab { flex: 0 0 168px; min-height: 104px; }
+  .mk-dock { bottom: 140px; gap: 10px; padding: 0; background: none; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .mk-act { width: 92px; height: 92px; border-radius: 24px; gap: 8px; border: 1px solid var(--edge); background: linear-gradient(180deg, color-mix(in srgb, var(--c) 16%, transparent), rgba(14, 16, 24, 0.55)); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 14px 34px rgba(0, 0, 0, 0.28); }
+  .mk-act .ic { width: 44px; height: 44px; border-radius: 16px; }
+  .mk-act .ic svg { width: 26px; height: 26px; }
+  .mk-act .lb { font-size: 13px; }
+  .mk-act:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--c) 45%, transparent); }
+  .mk-sheet { bottom: auto; top: 50%; transform: translate(-50%, -46%) scale(0.98); width: min(560px, 50vw); }
+  .mk-sheet.on { transform: translate(-50%, -50%) scale(1); }
+  .mk-habs { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ── AR camera view (src/ar sets html.kin-ar): controls over the live room ───────────────────
+   Darker, more legible glass over an unpredictable camera feed; the habitat strip has no place
+   in your room; the AR controls are drawn in the shell's own language. */
+html.kin-ar .mk-shell, body.mk-ar .mk-shell { --glass: rgba(10, 12, 18, 0.62); --glass-hi: rgba(10, 12, 18, 0.8); }
+html.kin-ar .mk-strip, body.mk-ar .mk-strip { display: none !important; }
+html.kin-ar .top, body.mk-ar .top { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 0 18px rgba(0, 0, 0, 0.35); }
+html .ar-badge, html .ar-menu {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)), rgba(10, 12, 18, 0.62);
+  border-color: rgba(255, 255, 255, 0.12); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 14px 34px rgba(0, 0, 0, 0.3);
+}
+html .ar-menu { border-radius: 22px; padding: 14px; }
+html .ar-menu button { border-radius: 14px; }
+html .ar-shutter { width: 64px; height: 64px; border-width: 3px; background: rgba(10, 12, 18, 0.35); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+html .ar-hint { border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; }
+/* Keep the AR shutter clear of the floating dock. */
+html.kin-ar body:not(.mk-awake) .ar-shutter { bottom: calc(28px + var(--safe-b)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-dock, .mk-nav, .mk-side, .mk-strip, .mk-sheet, .mk-act, .mk-hab { transition: opacity 0.2s linear !important; transform: none !important; }
+  .mk-shell.ready.awake .mk-dock { transform: translate(-50%, 0) !important; }
+  .mk-sheet { transform: translate(-50%, 0) !important; }
+}
+@media (prefers-reduced-motion: reduce) and (min-width: 1024px) and (min-height: 680px) {
+  .mk-sheet { transform: translate(-50%, -50%) !important; }
+}
