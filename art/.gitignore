@@ -1,0 +1,4 @@
+build/*
+!build/kin_hero.blend
+!build/clips.json
+__pycache__/
