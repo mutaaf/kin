@@ -55,6 +55,11 @@ public static class KinProof
         Aim(cam, new Vector3(0.72f, 0.16f, 0.05f), new Vector3(0, 0.13f, 0), 30);
         Shot(cam, "hero_side", 1280, 1280);
 
+        // Pose strips (front 3/4): the sit must read proud, the sleep calm and alive.
+        PoseStrip(cam, kin, "strip_sit", Clip("Sit_Loop"), Expression.Happy);
+        PoseStrip(cam, kin, "strip_sleep", Clip("Lie_Sleep"), Expression.Asleep);
+        PoseStrip(cam, kin, "strip_fall_asleep", Clip("Fall_Asleep"), Expression.Sleepy);
+
         // Walk strip: 6 frames side by side.
         var frames = new Texture2D[6];
         Aim(cam, new Vector3(0.7f, 0.17f, 0.12f), new Vector3(0, 0.13f, 0), 32);
@@ -103,6 +108,24 @@ public static class KinProof
         Debug.Log("KIN_PROOF habitat done");
     }
 
+    static void PoseStrip(Camera cam, KinCreature kin, string name, AnimationClip clip, Expression e)
+    {
+        Aim(cam, new Vector3(0.42f, 0.2f, 0.62f), new Vector3(0, 0.1f, 0), 30);
+        var frames = new Texture2D[6];
+        for (int i = 0; i < 6; i++)
+        {
+            clip.SampleAnimation(kin.gameObject, clip.length * i / 6f);
+            kin.transform.position = Vector3.zero;
+            kin.Express(e);
+            kin.blink = 0;
+            for (int k = 0; k < 30; k++) kin.Tick(0.016f, false);
+            frames[i] = Render(cam, 420, 420);
+        }
+        var strip = new Texture2D(420 * 6, 420, TextureFormat.RGBA32, false);
+        for (int i = 0; i < 6; i++) strip.SetPixels(420 * i, 0, 420, 420, frames[i].GetPixels());
+        File.WriteAllBytes(Path.Combine(OutDir, name + ".png"), strip.EncodeToPNG());
+    }
+
     static AnimationClip Clip(string n) =>
         AssetDatabase.LoadAllAssetsAtPath("Assets/Kin/Art/kin_hero.fbx").OfType<AnimationClip>().First(c => c.name == n);
 
@@ -113,6 +136,8 @@ public static class KinProof
         var kin = go.GetComponent<KinCreature>();
         kin.Build();
         go.GetComponent<LODGroup>().ForceLOD(0);
+        // Batch mode has no player loop to re-skin between manual renders: force it per render.
+        foreach (var r in go.GetComponentsInChildren<SkinnedMeshRenderer>(true)) r.forceMatrixRecalculationPerRender = true;
         return kin;
     }
 

@@ -212,15 +212,23 @@ def hop_loop(t):
 
 
 def sit_pose(P, k):
-    P.r("hips", pitch=34 * k).r("spine_02", pitch=-6 * k).r("chest", pitch=-10 * k).r("neck_01", pitch=-14 * k).r("head", pitch=-6 * k)
-    P.loc("hips", z=-0.035 * k, y=0.008 * k)
+    """A proud, alert sit (never a squat): chest up, front legs straight and vertical, head level
+    and looking out, ears up, tail curled forward around the front paws."""
+    tilt = 52 * k  # how far the body rises: hips + spine + chest together
+    P.r("hips", pitch=36 * k).r("spine_02", pitch=8 * k).r("chest", pitch=8 * k)
+    # Neck and head nod forward by the same amount the body rose, so the face stays level.
+    P.r("neck_01", pitch=18 * k).r("neck_02", pitch=16 * k).r("head", pitch=12 * k)
+    P.loc("hips", z=-0.028 * k, y=-0.006 * k)
     for s in "LR":
         b = LEGS[("back", s)]
         P.r(b[0], pitch=-70 * k).r(b[1], pitch=110 * k).r(b[2], pitch=-45 * k)
         f = LEGS[("front", s)]
-        P.r(f[0], pitch=-30 * k).r(f[1], pitch=8 * k)
+        # Swing back by the body's rise: the front legs stand straight down like pillars.
+        P.r(f[0], pitch=-tilt * 0.92).r(f[1], pitch=4 * k).r(f[2], pitch=tilt * 0.35)
     for i, b in enumerate(TAIL):
-        P.r(b, pitch=-8 * k, yaw=(6 + i * 4) * k)
+        # Down onto the ground, then sweeping forward around the paws.
+        P.r(b, pitch=(-22 if i < 2 else -4) * k, yaw=(10 + i * 9) * k)
+    ears(P, 0, perk=0.8 * k)
 
 
 @clip("Sit_Enter", 30, False)
@@ -251,35 +259,49 @@ def sit_exit(t):
 
 
 def lie_pose(P, k):
-    P.loc("hips", z=-0.05 * k).loc("chest", z=-0.03 * k)
-    P.r("neck_01", pitch=12 * k).r("neck_02", pitch=8 * k).r("head", pitch=6 * k, roll=10 * k)
+    """Curled into a soft loaf: legs tucked under, chin resting on the front paws, tail wrapped
+    round to the nose. Calm and cosy (relaxed ears, not drooped)."""
+    P.loc("hips", z=-0.075 * k).loc("chest", z=-0.03 * k)
+    P.r("hips", pitch=-8 * k).r("chest", pitch=6 * k)
+    P.r("hips", yaw=-10 * k).r("spine_02", yaw=-8 * k).r("chest", yaw=-6 * k)
+    P.r("neck_01", pitch=4 * k, yaw=-8 * k).r("neck_02", pitch=2 * k, yaw=-8 * k).r("head", pitch=6 * k, roll=8 * k, yaw=-6 * k)
     for (end, s), b in LEGS.items():
         if end == "back":
-            P.r(b[0], pitch=-80 * k).r(b[1], pitch=120 * k).r(b[2], pitch=-50 * k)
+            P.r(b[0], pitch=-55 * k).r(b[1], pitch=105 * k).r(b[2], pitch=-55 * k)
         else:
-            P.r(b[0], pitch=60 * k).r(b[1], pitch=-30 * k).r(b[2], pitch=-30 * k)
+            P.r(b[0], pitch=-40 * k).r(b[1], pitch=80 * k).r(b[2], pitch=-30 * k)
     for i, b in enumerate(TAIL):
-        P.r(b, pitch=-14 * k, yaw=(10 + i * 6) * k)
-    ears(P, 0, droop=0.9 * k)
+        P.r(b, pitch=(-16 if i < 2 else -2) * k, yaw=(14 + i * 13) * k)
+    ears(P, 0, droop=0.35 * k)
 
 
 @clip("Lie_Sleep", 180, True, face={"Blink": 1.0})
 def lie_sleep(t):
     P = Pose()
     lie_pose(P, 1.0)
-    breathe(P, t, 3, depth=1.6)
-    P.r("head", pitch=1.2 * S(TAU * 3 * t + 0.8))
-    ears(P, t, flick=0.5 * bump(t, 0.4, 0.43, 0.48))
+    # Clearly alive: slow deep breaths (3 per loop = ~12/min), a soft head rise with each,
+    # an ear twitch and a tail-tip flick.
+    breathe(P, t, 3, depth=2.4)
+    P.r("head", pitch=-1.6 * S(TAU * 3 * t + 0.8)).r("neck_02", pitch=-0.8 * S(TAU * 3 * t + 0.6))
+    P.loc("chest", z=0.0012 * S(TAU * 3 * t))
+    ears(P, t, flick=0.7 * bump(t, 0.4, 0.43, 0.48) + 0.5 * bump(t, 0.78, 0.8, 0.84))
+    P.r(TAIL[-1], yaw=10 * bump(t, 0.6, 0.66, 0.74)).r(TAIL[-2], yaw=5 * bump(t, 0.6, 0.66, 0.74))
     return P
 
 
 @clip("Fall_Asleep", 90, False, face={"Sleepy": 1.0, "Blink": "ramp"})
 def fall_asleep(t):
+    """A gentle settle, never a collapse: a stretch lean, then easing down slowly."""
     P = Pose()
-    sit_pose(P, 1 - env(t, 0.55, 0.95))
-    lie_pose(P, env(t, 0.55, 0.95))
-    nod = bump(t, 0.1, 0.18, 0.24) + bump(t, 0.3, 0.38, 0.45)
-    P.r("head", pitch=16 * nod).r("neck_02", pitch=6 * nod)
+    k = env(t, 0.25, 0.92)
+    lie_pose(P, k)
+    stretch = bump(t, 0.0, 0.12, 0.26)
+    P.r("chest", pitch=-6 * stretch).r("head", pitch=-10 * stretch)
+    for s in "LR":
+        P.r(LEGS[("front", s)][0], pitch=14 * stretch)
+    breathe(P, t, 2, depth=1.2 + k)
+    nod = bump(t, 0.82, 0.88, 0.96)
+    P.r("head", pitch=4 * nod)
     return P
 
 

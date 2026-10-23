@@ -29,6 +29,7 @@ namespace Kin.App
         float petting;
         Vector2 lastTouch;
         Collider hitbox;
+        KinZzz zzz;
 
         static double Now => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
@@ -46,6 +47,10 @@ namespace Kin.App
             cap.height = 0.3f;
             cap.direction = 2;
             hitbox = cap;
+            var head = creature.GetComponentsInChildren<Transform>(true);
+            zzz = new GameObject("Zzz").AddComponent<KinZzz>();
+            zzz.transform.SetParent(creature.transform, false);
+            foreach (var t in head) if (t.name == "head") zzz.anchor = t;
         }
 
         void Update()
@@ -82,17 +87,28 @@ namespace Kin.App
             walkTo = null;
             creature.Wag(0);
             creature.Express(Expression.Neutral);
+            if (zzz) zzz.active = a == KinAction.Sleep;
+            creature.lookPoint = null;
             switch (a)
             {
                 case KinAction.Wander:
                     var c = home ? home.position : Vector3.zero;
                     var d = UnityEngine.Random.insideUnitCircle * roam * transform.lossyScale.x;
-                    walkTo = c + new Vector3(d.x, 0, d.y);
+                    var w = c + new Vector3(d.x, 0, d.y);
+                    if (viewCamera)
+                    {
+                        // Mostly wander toward the camera side, so walks show the face, not the back.
+                        var toCam = viewCamera.transform.position - c; toCam.y = 0;
+                        if (Vector3.Dot(w - c, toCam) < 0 && UnityEngine.Random.value < 0.75f) w = c - (w - c) * 0.6f;
+                    }
+                    walkTo = w;
                     break;
                 case KinAction.Sit:
                 case KinAction.Bask:
+                    // A proud sit, looking at you with a happy face (bask = content, eyes soft).
                     creature.Play("Sit_Enter");
-                    if (a == KinAction.Bask) creature.Express(Expression.Sleepy);
+                    creature.Express(a == KinAction.Bask ? Expression.Sleepy : Expression.Happy, 2.5f);
+                    if (viewCamera) creature.lookPoint = viewCamera.transform.position;
                     break;
                 case KinAction.Sleep:
                     creature.Play("Fall_Asleep");
@@ -120,7 +136,23 @@ namespace Kin.App
         void Move()
         {
             var t = creature.transform;
-            if (walkTo == null) { creature.SetSpeed(0); return; }
+            if (zzz && !zzz.viewCamera) zzz.viewCamera = viewCamera;
+            if (walkTo == null)
+            {
+                creature.SetSpeed(0);
+                // Idle: turn (slowly, like a pet noticing you) so the face stays toward the camera.
+                if (viewCamera && current?.Action != KinAction.Sleep)
+                {
+                    var toCam = viewCamera.transform.position - t.position;
+                    toCam.y = 0;
+                    if (toCam.sqrMagnitude > 1e-4)
+                    {
+                        var face = Quaternion.LookRotation(toCam.normalized, Vector3.up) * Quaternion.Euler(0, 18, 0); // a 3/4 face, not dead-on
+                        if (Quaternion.Angle(t.rotation, face) > 25) t.rotation = Quaternion.RotateTowards(t.rotation, face, 70 * Time.deltaTime);
+                    }
+                }
+                return;
+            }
             var to = walkTo.Value - t.position;
             to.y = 0;
             float dist = to.magnitude;

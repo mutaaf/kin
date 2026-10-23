@@ -76,6 +76,11 @@ public static class KinSceneBuilder
         vol.isGlobal = true;
         vol.sharedProfile = AssetDatabase.LoadAssetAtPath<VolumeProfile>("Assets/Settings/KinPost.asset");
 
+        // Startup: shader warm-up behind a veil + on-device frame-time log.
+        var boot = new GameObject("Boot");
+        boot.AddComponent<KinBoot>();
+        boot.AddComponent<KinFrameLog>();
+
         // AR rig (inactive until the session reports support).
         var ar = BuildAr(sun, life, habitat, cam);
 
