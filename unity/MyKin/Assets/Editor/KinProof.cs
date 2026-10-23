@@ -71,6 +71,38 @@ public static class KinProof
         Debug.Log("KIN_PROOF done " + OutDir);
     }
 
+    /// <summary>The habitat at golden hour and at night, from the spotlight framing.</summary>
+    public static void CaptureHabitat()
+    {
+        Directory.CreateDirectory(OutDir);
+        EditorSceneManager.OpenScene("Assets/Scenes/Main.unity");
+        var cam = GameObject.Find("HabitatCamera").GetComponent<Camera>();
+        var kin = Object.FindFirstObjectByType<KinCreature>();
+        var sky = Object.FindFirstObjectByType<Kin.App.KinSky>();
+        var meadow = Object.FindFirstObjectByType<KinMeadow>();
+        kin.Build();
+        meadow.Build();
+        Clip("Idle").SampleAnimation(kin.gameObject, 1.0f);
+        kin.Tick(0.016f, false);
+        foreach (var (name, hour) in new[] { ("habitat_golden", 18.6f), ("habitat_day", 11.5f), ("habitat_night", 22.5f) })
+        {
+            sky.overrideHour = hour;
+            sky.Apply();
+            DynamicGI.UpdateEnvironment();
+            foreach (var (shot, pos, at, fov) in new[]
+            {
+                ("", new Vector3(0.22f, 0.17f, 0.62f), new Vector3(0, 0.15f, 0), 36f),
+                ("_wide", new Vector3(0.9f, 0.55f, 2.1f), new Vector3(0, 0.15f, 0), 40f),
+            })
+            {
+                Aim(cam, pos, at, fov);
+                meadow.Draw(cam);
+                Shot(cam, name + shot, 1170, 1600);
+            }
+        }
+        Debug.Log("KIN_PROOF habitat done");
+    }
+
     static AnimationClip Clip(string n) =>
         AssetDatabase.LoadAllAssetsAtPath("Assets/Kin/Art/kin_hero.fbx").OfType<AnimationClip>().First(c => c.name == n);
 
@@ -142,7 +174,10 @@ public static class KinProof
     {
         var rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
         cam.targetTexture = rt;
+        var meadow = Object.FindFirstObjectByType<KinMeadow>();
+        if (meadow) meadow.Draw(cam);
         cam.Render();
+        if (meadow) meadow.Draw(cam);
         cam.Render(); // second frame: post-processing history settles
         RenderTexture.active = rt;
         var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);

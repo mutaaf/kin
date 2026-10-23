@@ -45,6 +45,7 @@ Shader "Kin/Fur"
             float4 _CheekL;
             float4 _CheekR;
         CBUFFER_END
+        float _KinNight;
         TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
         TEXTURE2D(_NormalMap); SAMPLER(sampler_NormalMap);
         TEXTURE2D(_ORM); SAMPLER(sampler_ORM);
@@ -131,7 +132,7 @@ Shader "Kin/Fur"
                 s.alpha = 1;
                 half fres = pow(1 - saturate(dot(nWS, vWS)), _RimPower);
                 // Crystals glow from within and sparkle at grazing angles; fur gets a soft halo.
-                s.emission = crystal * _CrystalColor.rgb * (_CrystalGlow * (0.35 + fres * 1.6))
+                s.emission = crystal * _CrystalColor.rgb * (_CrystalGlow * (0.35 + fres * 1.6) * (1 + _KinNight * 1.4))
                            + (1 - crystal) * _RimColor.rgb * fres * _RimStrength * 0.35;
                 half4 c = UniversalFragmentPBR(d, s);
                 c.rgb = MixFog(c.rgb, i.fog);
