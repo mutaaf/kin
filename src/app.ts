@@ -20,6 +20,7 @@ import { BroadcastTransport } from './transport/transport';
 import { MultiTransport, RelayTransport, relayUrl } from './transport/relay';
 import { watchStitch } from './stitch/gesture';
 import { Hud } from './ui/hud';
+import { attachWorld } from './world/attach';
 import { initNative, isNative, setHaptics, tap } from './platform/native';
 import { aiLabel, loadAI } from './ai/config';
 import type { Card } from './ai/schema';
@@ -71,6 +72,20 @@ export async function startApp(slot: string) {
   const view = new KinView(genome, stage);
   const guests = new Map<string, GuestView>();
   const hud = new Hud();
+  // The world: physics, matter, autonomous objects and the care loop (src/world). Embedded trailer
+  // instances skip it, so they stay light and never write care state.
+  const world = embed
+    ? null
+    : attachWorld({
+        stage, view, kv, slot, sfx,
+        kin: () => kin,
+        setKin: (k) => {
+          kin = k;
+        },
+        toast: (t) => hud.toast(t),
+        reducedMotion: () => settings.reducedMotion,
+      });
+  addEventListener('pagehide', () => world?.save());
   // Peer ids must be unique across devices (every phone's first home is slot "home").
   let device = kv.get('kin:device');
   if (!device) {
@@ -767,6 +782,7 @@ export async function startApp(slot: string) {
     stage.update(dt, t);
     view.update(dt, now, t);
     for (const g of guests.values()) g.view.update(dt, now, t);
+    world?.update(dt, now, t);
     stage.render();
     if (!paused) requestAnimationFrame(frame);
   };
