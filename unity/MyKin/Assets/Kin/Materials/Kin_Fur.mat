@@ -53,6 +53,7 @@ Material:
     - _CheekL: {r: 0, g: -100, b: 0, a: 0.02}
     - _CheekR: {r: 0, g: -100, b: 0, a: 0.02}
     - _CrystalColor: {r: 0.42999998, g: 0.9, b: 0.78999996, a: 1}
+    - _LidFur: {r: 0.88352585, g: 0.8555489, b: 0.8435005, a: 1}
     - _RimColor: {r: 1, g: 0.97999996, b: 0.96, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

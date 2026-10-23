@@ -36,6 +36,8 @@ Shader "Kin/Eye"
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_fog
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
+            #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             CBUFFER_START(UnityPerMaterial)
@@ -43,6 +45,8 @@ Shader "Kin/Eye"
                 half _Pupil; float4 _Look; half _FlipV; half _Catch;
             CBUFFER_END
             TEXTURE2D(_Iris); SAMPLER(sampler_Iris);
+            float4 _KinEyeL, _KinEyeR; // eye centres (world) + radius, from KinCreature
+            float4 _KinHeadRight, _KinHeadUp, _KinHeadFwd; // head axes (world), from KinCreature
             struct A { float4 positionOS : POSITION; float3 normalOS : NORMAL; float2 uv : TEXCOORD0; };
             struct V { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float3 positionWS : TEXCOORD1; float3 normalWS : TEXCOORD2; float fog : TEXCOORD3; };
 
@@ -50,6 +54,11 @@ Shader "Kin/Eye"
             {
                 V o;
                 o.positionWS = TransformObjectToWorld(i.positionOS.xyz);
+                // Closing swells the eyeball out to the socket's lip, so a shut eye is a flush,
+                // furry lid with no hole or rim around it (the recess only exists while open).
+                float shutAmt = saturate(max(max(_Lid, _Happy), _Sleepy * 0.48));
+                float4 ec = _Side > 0 ? _KinEyeL : _KinEyeR;
+                if (ec.w > 0) o.positionWS = ec.xyz + (o.positionWS - ec.xyz) * (1 + 0.32 * smoothstep(0.3, 1.0, shutAmt));
                 o.positionCS = TransformWorldToHClip(o.positionWS);
                 o.normalWS = TransformObjectToWorldNormal(i.normalOS);
                 o.uv = i.uv;
@@ -72,6 +81,13 @@ Shader "Kin/Eye"
                 // No white sclera ring: the rim fades into a soft dark lash line, like the concept.
                 iris = lerp(iris, _LashColor.rgb, smoothstep(0.36, 0.43, rr));
 
+                // Lid features live in HEAD space (eye-local x right, y up, in eye radii), so lids and
+                // creases sit where they should whatever the eye mesh's UV projection does.
+                float4 ecf = _Side > 0 ? _KinEyeL : _KinEyeR;
+                float3 rel = (i.positionWS - ecf.xyz) / max(ecf.w, 1e-4);
+                float hx = dot(rel, _KinHeadRight.xyz) * 0.5; // ±0.5 across the eye, like uv.x - 0.5
+                float hy = dot(rel, _KinHeadUp.xyz) * 0.5 + 0.5;
+                if (ecf.w > 0) { uv = float2(hx + 0.5, hy); }
                 // Upper lid edge: a soft downward-curving arc; worried lifts the inner corner.
                 float x = uv.x - 0.5;
                 float inner = -x * _Side; // + towards the nose
@@ -79,37 +95,46 @@ Shader "Kin/Eye"
                 float edge = lerp(1.08, -0.06, close) - 0.55 * x * x * (1 - close * 0.6) + _Worried * 0.22 * saturate(inner * 2 + 0.3);
                 half lid = smoothstep(edge - 0.012, edge + 0.012, uv.y);
                 half lash = band(uv.y - edge, lerp(0.035, 0.05, close));
-                // Lower lid hint when closed, so a blink reads as a gentle curve, not a cut.
-                // Lids are soft fur: a little darker towards the socket edge so they read as rounded.
-                half3 lidFur = _FurColor.rgb * lerp(1.0, 0.82, smoothstep(0.22, 0.5, rr));
+                // Closed parts ARE the face's fur (colour sampled from the brow at build time), lit
+                // with the same PBR model and matte finish as the body, so no disc or rim shows.
+                half3 lidFur = _FurColor.rgb * 1.3; // the body's fur reads brighter (rim + shells); match it
                 half3 col = lerp(iris, lidFur, lid);
-                col = lerp(col, _LashColor.rgb, lash * (1 - _Happy) * (1 - smoothstep(0.7, 0.9, close)));
-                // Fully closed: a soft "‿" lash curve, so a blink or sleep reads peaceful, not blank.
-                float shutY = 0.5 - 0.22 * (1 - saturate((x * x) / 0.16));
-                half shut = band(uv.y - shutY, 0.05) * (1 - smoothstep(0.36, 0.42, abs(x))) * smoothstep(0.75, 1.0, close);
-                col = lerp(col, _LashColor.rgb, shut * (1 - _Happy));
-
-                // Happy "^ ^": fur everywhere + an upward arc stroke.
-                float arcY = 0.36 + 0.2 * (1 - saturate((x * x) / 0.16));
-                half arc = band(uv.y - arcY, 0.075) * (1 - smoothstep(0.36, 0.42, abs(x)));
-                half3 happy = lerp(lidFur, _LashColor.rgb, arc);
-                col = lerp(col, happy, _Happy);
-
-                // Lighting: soft, with sparkling catchlights on the open eye.
-                float3 n = normalize(i.normalWS);
-                float3 v = GetWorldSpaceNormalizeViewDir(i.positionWS);
-                Light l = GetMainLight();
-                half diff = saturate(dot(n, l.direction) * 0.5 + 0.5);
-                half3 lit = col * (SampleSH(n) * 0.9 + l.color * diff * 0.55);
+                // A thin lash line rides the lid edge while it moves; it fades out once shut.
+                col = lerp(col, _LashColor.rgb, lash * 0.85 * (1 - _Happy) * (1 - smoothstep(0.65, 0.85, close)));
+                // Fully shut: a gentle "‿" crease, slightly soft and short, not a drawn stroke.
+                float shutY = 0.44 - 0.12 * (1 - saturate((x * x) / 0.16));
+                half shut = band(uv.y - shutY, 0.07) * (1 - smoothstep(0.32, 0.4, abs(x))) * smoothstep(0.8, 1.0, close);
+                col = lerp(col, _LashColor.rgb * 1.3, shut * (1 - _Happy));
+                // Happy "^ ^": the fur closes and a soft upward crease forms (cheeks push up below it).
+                float arcY = 0.4 + 0.16 * (1 - saturate((x * x) / 0.16));
+                half arc = band(uv.y - arcY, 0.085) * (1 - smoothstep(0.32, 0.4, abs(x)));
+                col = lerp(col, lerp(lidFur, _LashColor.rgb * 1.6, arc * 0.9), _Happy);
                 half open = (1 - lid) * (1 - _Happy);
-                float3 h = normalize(l.direction + v);
-                half spec = pow(saturate(dot(n, h)), 900) * 2.5;
+
+                InputData d = (InputData)0;
+                d.positionWS = i.positionWS;
+                // A shut lid lies flush with the face: light it with the face's normal, not the ball's.
+                d.normalWS = normalize(lerp(normalize(i.normalWS), _KinHeadFwd.xyz, 0.75 * (1 - open)));
+                d.viewDirectionWS = GetWorldSpaceNormalizeViewDir(i.positionWS);
+                d.shadowCoord = TransformWorldToShadowCoord(i.positionWS);
+                d.bakedGI = SampleSH(d.normalWS);
+                d.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(i.positionCS);
+                d.shadowMask = half4(1, 1, 1, 1);
+                SurfaceData sd = (SurfaceData)0;
+                sd.albedo = col;
+                sd.smoothness = lerp(0.16, 0.55, open); // glossy iris, matte fur lid
+                sd.occlusion = 1;
+                sd.alpha = 1;
+                half3 lit = UniversalFragmentPBR(d, sd).rgb;
+                // The same soft fluff rim the body has, on the closed lid.
+                half fres = pow(1 - saturate(dot(d.normalWS, d.viewDirectionWS)), 2.6);
+                lit += lidFur * fres * 0.16 * (1 - open);
                 // Catchlights: a big soft window up-left and a small one down-right (they ride with the
-                // look offset like real reflections), plus the key light's own glint.
+                // look offset like real reflections).
                 float2 e = uv - c - _Look.xy * 0.5;
                 half big = 1 - smoothstep(0.055, 0.075, length(e - float2(-0.11, 0.12)));
                 half small = 1 - smoothstep(0.022, 0.032, length(e - float2(0.1, -0.1)));
-                lit += (spec * l.color + (big * 0.95 + small * 0.8)) * _Catch * open;
+                lit += (big * 0.95 + small * 0.8) * _Catch * open;
                 lit = MixFog(lit, i.fog);
                 return half4(lit, 1);
             }

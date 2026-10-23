@@ -17,3 +17,4 @@
 *.pidb
 *.userprefs
 .DS_Store
+/Data/

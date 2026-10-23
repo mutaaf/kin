@@ -20,6 +20,7 @@ Shader "Kin/Fur"
         _RimStrength ("Rim Strength", Range(0, 2)) = 0.45
         _BlushColor ("Blush", Color) = (1, 0.62, 0.7, 1)
         _BlushAmount ("Blush Amount", Range(0, 1)) = 0.5
+        _LidFur ("Lid Fur", Color) = (0.95, 0.94, 0.93, 1)
         _CheekL ("Cheek L (ws xyz, r)", Vector) = (0, -100, 0, 0.02)
         _CheekR ("Cheek R (ws xyz, r)", Vector) = (0, -100, 0, 0.02)
     }
@@ -44,7 +45,10 @@ Shader "Kin/Fur"
             half _BlushAmount;
             float4 _CheekL;
             float4 _CheekR;
+            half4 _LidFur;
         CBUFFER_END
+        float4 _KinEyeL, _KinEyeR; // eye centre + radius (world), set by KinCreature
+        float _KinLidClose;        // 0 open … 1 closed
         float _KinNight;
         TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
         TEXTURE2D(_NormalMap); SAMPLER(sampler_NormalMap);
@@ -111,6 +115,10 @@ Shader "Kin/Fur"
                 half b = max(blush(i.positionWS, _CheekL), blush(i.positionWS, _CheekR)) * _BlushAmount * (1 - crystal);
                 half3 albedo = lerp(base.rgb, base.rgb * _BlushColor.rgb, b * 0.6);
                 albedo = lerp(albedo, lerp(albedo, _CrystalColor.rgb, 0.55), crystal);
+                // When the eyes close, the painted dark socket ring becomes fur too (no hole/rim).
+                float eyeD = min(distance(i.positionWS, _KinEyeL.xyz) / max(_KinEyeL.w, 1e-4), distance(i.positionWS, _KinEyeR.xyz) / max(_KinEyeR.w, 1e-4));
+                half ring = (1 - smoothstep(1.25, 1.6, eyeD)) * _KinLidClose;
+                albedo = lerp(albedo, _LidFur.rgb, ring);
 
                 InputData d = (InputData)0;
                 d.positionWS = i.positionWS;
@@ -128,7 +136,7 @@ Shader "Kin/Fur"
                 s.specular = half3(0, 0, 0);
                 s.smoothness = lerp(_FurSmoothness * (1 - orm.g), 0.92, crystal);
                 s.normalTS = nTS;
-                s.occlusion = lerp(1, orm.r, 0.85);
+                s.occlusion = lerp(lerp(1, orm.r, 0.85), 1, ring);
                 s.alpha = 1;
                 half fres = pow(1 - saturate(dot(nWS, vWS)), _RimPower);
                 // Crystals glow from within and sparkle at grazing angles; fur gets a soft halo.

@@ -53,8 +53,48 @@ public static class KinBuilder
         var eyeR = Mat("Kin_Eye_R", "Kin/Eye");
         eyeR.SetTexture("_Iris", Tex("kin_eye_R_nocatch.png"));
         eyeR.SetFloat("_Side", -1);
+        // Lids are the face's own fur: average the base colour of body vertices in a ring just
+        // above and around each eye (bind pose), so a closed eye is the same white as its brow.
+        var lid = LidFurColor();
+        foreach (var e in new[] { eyeL, eyeR }) e.SetColor("_FurColor", lid);
+        fur.SetColor("_LidFur", lid);
+        Debug.Log($"KIN_BUILD lidFur={lid}");
         foreach (var m in new[] { fur, shell, eyeL, eyeR }) EditorUtility.SetDirty(m);
         return (fur, shell, eyeL, eyeR);
+    }
+
+    static Color LidFurColor()
+    {
+        var go = AssetDatabase.LoadAssetAtPath<GameObject>(Art + "kin_hero.fbx");
+        var smrs = go.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+        var body = smrs.First(r => r.name == "KIN_LOD0").sharedMesh;
+        var tex = new Texture2D(2, 2);
+        tex.LoadImage(System.IO.File.ReadAllBytes(Art + "Textures/kin_basecolor.png"));
+        var verts = body.vertices;
+        var uvs = body.uv;
+        Color sum = Color.black;
+        int n = 0;
+        foreach (var eye in smrs.Where(r => r.name.StartsWith("KIN_Eye")))
+        {
+            var c = eye.sharedMesh.bounds.center;
+            float r = Mathf.Max(eye.sharedMesh.bounds.extents.x, eye.sharedMesh.bounds.extents.y);
+            for (int i = 0; i < verts.Length; i++)
+            {
+                var d = verts[i] - c;
+                float dist = new Vector2(d.x, d.y).magnitude;
+                // A band above the eye (brow fur), clear of the dark socket paint.
+                if (dist > r * 1.5f && dist < r * 2.4f && d.y > r * 0.4f && Mathf.Abs(d.z) < r * 1.5f)
+                {
+                    sum += tex.GetPixelBilinear(uvs[i].x, uvs[i].y);
+                    n++;
+                }
+            }
+        }
+        Object.DestroyImmediate(tex);
+        var col = n > 0 ? sum / n : new Color(0.95f, 0.94f, 0.93f);
+        col.a = 1;
+        Debug.Log($"KIN_BUILD lidSamples={n}");
+        return col;
     }
 
     static AnimationClip Clip(string name) =>

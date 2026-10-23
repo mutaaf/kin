@@ -50,6 +50,26 @@ namespace Kin.App
 
         void OnEnable() => Build();
 
+        // Exact eye centres: the eye mesh's bind-pose centre carried by the head bone (renderer
+        // bounds on skinned meshes are approximate and drift, which mis-placed blush and lids).
+        Vector3 eyeCentreL, eyeCentreR;
+        float eyeRadius;
+        int headIndexL = -1, headIndexR = -1;
+
+        void CacheEyes()
+        {
+            int Idx(SkinnedMeshRenderer r) => r ? System.Array.FindIndex(r.bones, b => b && b.name == "head") : -1;
+            headIndexL = Idx(eyeL); headIndexR = Idx(eyeR);
+            if (eyeL) { eyeCentreL = eyeL.sharedMesh.bounds.center; eyeRadius = Mathf.Max(eyeL.sharedMesh.bounds.extents.x, eyeL.sharedMesh.bounds.extents.y); }
+            if (eyeR) eyeCentreR = eyeR.sharedMesh.bounds.center;
+        }
+
+        Vector3 EyeWorld(SkinnedMeshRenderer r, int headIdx, Vector3 meshCentre)
+        {
+            if (!r || headIdx < 0) return r ? r.bounds.center : Vector3.zero;
+            return r.bones[headIdx].localToWorldMatrix.MultiplyPoint3x4(r.sharedMesh.bindposes[headIdx].MultiplyPoint3x4(meshCentre));
+        }
+
         public void Build()
         {
             if (body == null) return;
@@ -62,6 +82,7 @@ namespace Kin.App
             iCheeks = mesh.GetBlendShapeIndex("Cheeks_Puff");
             iEars = mesh.GetBlendShapeIndex("Ears_Relax");
             SetShells(shellCount);
+            CacheEyes();
             if (eyeL && eyeMaterialL) eyeL.sharedMaterial = eyeMaterialL;
             if (eyeR && eyeMaterialR) eyeR.sharedMaterial = eyeMaterialR;
             mpbL ??= new MaterialPropertyBlock();
@@ -94,6 +115,13 @@ namespace Kin.App
         {
             foreach (var b in body.bones) if (b && b.name == bone) return b;
             return null;
+        }
+
+        /// <summary>Midpoint between the eyes, in world space.</summary>
+        public Vector3 FaceCentre()
+        {
+            if (headIndexL < 0) CacheEyes();
+            return (EyeWorld(eyeL, headIndexL, eyeCentreL) + EyeWorld(eyeR, headIndexR, eyeCentreR)) * 0.5f;
         }
 
         // ── Public controls ───────────────────────────────────────────────────────────────────
@@ -146,7 +174,7 @@ namespace Kin.App
             float tWorried = expression == Expression.Worried ? 1 : 0;
             float tLid = expression == Expression.Asleep ? 1 : expression == Expression.Surprised ? 0 : blink;
             float tSmile = expression switch { Expression.Happy => 1, Expression.Petted => 0.8f, Expression.Curious => 0.3f, Expression.Worried => 0, _ => 0.35f };
-            float tCheek = expression == Expression.Petted ? 1 : 0;
+            float tCheek = expression == Expression.Petted ? 1 : expression == Expression.Happy ? 0.7f : 0;
             float tO = expression == Expression.Surprised ? 0.8f : 0;
             float k = live ? 1 - Mathf.Exp(-dt * 14) : 1;
             happyW = Mathf.Lerp(happyW, tHappy, k);
@@ -168,7 +196,8 @@ namespace Kin.App
             // Blush follows the cheeks (just under and outside each eye), warmer when petted.
             if (eyeL && eyeR)
             {
-                Vector3 l = eyeL.bounds.center, r = eyeR.bounds.center;
+                if (headIndexL < 0) CacheEyes();
+                Vector3 l = EyeWorld(eyeL, headIndexL, eyeCentreL), r = EyeWorld(eyeR, headIndexR, eyeCentreR);
                 Vector3 across = (l - r).normalized;
                 Vector3 up = head ? head.up : Vector3.up;
                 float rad = Vector3.Distance(l, r) * 0.42f;
@@ -179,7 +208,17 @@ namespace Kin.App
                 body.SetPropertyBlock(mpbBody, 0);
                 // When the eyes close, fur grows in over the rim so the lid reads soft, not like a plate.
                 float shut = Mathf.Max(lidW, happyW);
-                float eyeRad = Mathf.Max(eyeL.bounds.extents.x, eyeL.bounds.extents.y) * Mathf.Lerp(1.02f, 0.7f, shut);
+                if (furMaterial) Shader.SetGlobalColor("_KinLidFur", furMaterial.GetColor("_LidFur"));
+                // Head axes for the eye shader: right = from the right eye to the left eye.
+                Vector3 hr = (r - l).normalized;
+                Vector3 hf = head ? Vector3.ProjectOnPlane(transform.forward, hr).normalized : transform.forward;
+                Vector3 hu = Vector3.Cross(hf, hr).normalized;
+                if (Vector3.Dot(hu, transform.up) < 0) hu = -hu;
+                Shader.SetGlobalVector("_KinHeadRight", hr);
+                Shader.SetGlobalVector("_KinHeadUp", hu);
+                Shader.SetGlobalVector("_KinHeadFwd", hf);
+                Shader.SetGlobalFloat("_KinLidClose", Mathf.SmoothStep(0, 1, Mathf.InverseLerp(0.35f, 0.9f, shut)));
+                float eyeRad = eyeRadius * transform.lossyScale.x * Mathf.Lerp(1.02f, 0.5f, shut);
                 Shader.SetGlobalVector("_KinEyeL", (Vector4)l + new Vector4(0, 0, 0, eyeRad));
                 Shader.SetGlobalVector("_KinEyeR", (Vector4)r + new Vector4(0, 0, 0, eyeRad));
             }

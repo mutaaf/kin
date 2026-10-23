@@ -31,7 +31,7 @@ public static class KinProof
             kin.blink = blink;
             for (int i = 0; i < 40; i++) kin.Tick(0.016f, false);
             // Frame on the real face: midpoint of the eyes, a touch lower for the muzzle.
-            var mid = (kin.eyeL.bounds.center + kin.eyeR.bounds.center) * 0.5f - new Vector3(0, 0.012f, 0);
+            var mid = kin.FaceCentre() - new Vector3(0, 0.012f, 0);
             var fwd = kin.transform.forward;
             Aim(cam, mid + fwd * 0.26f + kin.transform.right * 0.06f + Vector3.up * 0.015f, mid, 30);
             Shot(cam, name, 1024, 1024);

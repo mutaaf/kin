@@ -51,6 +51,7 @@ Shader "Kin/FurShell"
             float4 _KinFurForce; // xyz world-space displacement (wind + motion lag), w unused
             float4 _KinEyeL;     // xyz eye centre (world), w radius: no fur grows over the eyes
             float4 _KinEyeR;
+            half4 _KinLidFur;    // the brow's fur colour (same as the lids)
 
             TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
             TEXTURE2D(_CrystalMask); SAMPLER(sampler_CrystalMask);
@@ -93,7 +94,7 @@ Shader "Kin/FurShell"
                 half3 base = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv).rgb * _BaseTint.rgb;
                 // Around the eyes the texture holds the dark socket paint; fur there is face-white.
                 float eyeD = min(distance(i.positionWS, _KinEyeL.xyz) / _KinEyeL.w, distance(i.positionWS, _KinEyeR.xyz) / _KinEyeR.w);
-                base = lerp(half3(0.96, 0.95, 0.94) * _BaseTint.rgb, base, smoothstep(1.2, 1.9, eyeD));
+                base = lerp(_KinLidFur.rgb * _BaseTint.rgb, base, smoothstep(1.2, 1.9, eyeD));
                 base *= lerp(0.92, 1.06, r);
                 // Roots darker (self-shadowing), tips lighter with a soft sheen.
                 half shade = lerp(1 - _RootShade, 1, _ShellH);
