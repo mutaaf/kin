@@ -1,30 +1,50 @@
-// A procedural, original KIN built from its genome: soft rounded body, oversized glossy eyes,
-// dynamic ears, a tail, an optional accent (crystal / sprout / ember). No asset files, no
+// A procedural, original KIN built from its genome. One sculpted, continuous soft body (an SDF
+// shrink-wrapped to a mesh: see creature/form.ts) wearing shell-texture fur, a face seated on the
+// surface (shader-painted eyes, nose, mouth, blush, brows), lathe-turned ears by genome kind, front
+// paws, a multi-segment tail and an optional accent (crystal / sprout / ember). No asset files, no
 // licensing questions, and the same seed renders the same creature on every device.
-// Chibi proportions: the head is bigger than the body, and the eyes carry most of the emotion.
 
 import * as THREE from 'three';
 import type { Genome } from '../core/genome';
+import { bodyGeometry, deriveForm, surfaceToward, type Form } from './creature/form';
+import { eyeGeometry, eyeMaterial, eyeUniforms, type EyeUniforms } from './creature/eyes';
+import { deformUniforms, FUR_TIERS, furShells, furUniforms, patch, plush, type DeformUniforms, type FurUniforms } from './creature/materials';
 
 export interface CreatureParts {
   root: THREE.Group;
   squash: THREE.Group;
+  /** Turns with the shader's head rotation (pivot at the neck). */
   head: THREE.Group;
-  eyes: THREE.Group[];
-  lids: THREE.Mesh[];
-  shine: THREE.Mesh[];
+  eyes: { mesh: THREE.Mesh; u: EyeUniforms }[];
   ears: THREE.Group[];
-  tail: THREE.Group;
-  legs: THREE.Mesh[];
-  mouth: THREE.Mesh;
+  tail: THREE.Group[];
+  paws: THREE.Group[];
+  mouth: { smile: THREE.Object3D; open: THREE.Group; tongue: THREE.Mesh };
   cheeks: THREE.Mesh[];
+  brows: THREE.Mesh[];
   accent: THREE.Object3D | null;
   accentMat: THREE.MeshStandardMaterial | null;
-  bodyMats: THREE.MeshPhysicalMaterial[];
+  deform: DeformUniforms;
+  fur: FurUniforms;
+  furMeshes: THREE.InstancedMesh[];
+  form: Form;
+  /** Head centre in body space (for hit-testing and look-at). */
+  headCenter: THREE.Vector3;
+  setFurTier(tier: number): void;
   dispose(): void;
 }
 
-const hsl = (h: number, s: number, l: number) => new THREE.Color().setHSL(((h % 360) + 360) % 360 / 360, s, l);
+const hsl = (h: number, s: number, l: number) => new THREE.Color().setHSL((((h % 360) + 360) % 360) / 360, s, l);
+const MAX_SHELLS = FUR_TIERS[FUR_TIERS.length - 1]!;
+
+/** Default fur tier: fewer shells on small/touch screens; the app may change it live. */
+function defaultTier(): number {
+  // ?fur=0..3 pins the quality (0 = plush only), for slow devices and software-GL test runs.
+  const q = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('fur');
+  if (q !== null && /^[0-3]$/.test(q)) return Number(q);
+  if (typeof matchMedia === 'undefined') return 2;
+  return matchMedia('(pointer: coarse)').matches ? 2 : 3;
+}
 
 export function buildCreature(g: Genome): CreatureParts {
   const geos: THREE.BufferGeometry[] = [];
@@ -32,194 +52,240 @@ export function buildCreature(g: Genome): CreatureParts {
   const geo = <T extends THREE.BufferGeometry>(x: T) => (geos.push(x), x);
   const mat = <T extends THREE.Material>(x: T) => (mats.push(x), x);
 
+  const form = deriveForm(g);
+  const body = bodyGeometry(g, form); // cached per seed: not disposed with the view
   const furColor = hsl(g.hue, g.sat, g.light);
-  // Plush: sheen for velvet, plus a soft fresnel rim so the silhouette glows against any sky
-  // (the crisp edge that separates a premium character from a primitive).
-  const rimColor = hsl(g.hue, 0.5, 0.92);
-  const plush = (c: THREE.Color, sheen: THREE.Color) => {
-    const m = mat(new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.78, sheen: 1, sheenRoughness: 0.42, sheenColor: sheen }));
-    m.onBeforeCompile = (sh) => {
-      sh.uniforms.uRim = { value: rimColor };
-      sh.fragmentShader = 'uniform vec3 uRim;\n' + sh.fragmentShader.replace(
-        '#include <dithering_fragment>',
-        `#include <dithering_fragment>
-         float rim = pow(1.0 - clamp(dot(normalize(vNormal), normalize(vViewPosition)), 0.0, 1.0), 2.6);
-         gl_FragColor.rgb += uRim * rim * 0.32;`,
-      );
-    };
-    return m;
-  };
-  const fur = plush(furColor, hsl(g.hue, g.sat * 0.6, Math.min(0.95, g.light + 0.2)));
-  const belly = plush(hsl(g.hue, g.sat * 0.5, Math.min(0.93, g.light + 0.16)), new THREE.Color('#fff7ee'));
-  const inner = plush(hsl(g.accentHue, 0.55, 0.78), hsl(g.accentHue, 0.6, 0.9));
-  const dark = mat(new THREE.MeshPhysicalMaterial({ color: hsl(g.hue, 0.35, 0.09), roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.05 }));
-  const white = mat(new THREE.MeshBasicMaterial({ color: '#ffffff' }));
-  const blush = mat(new THREE.MeshBasicMaterial({ color: hsl(350, 0.8, 0.72), transparent: true, opacity: 0.45, depthWrite: false }));
+  const sheen = hsl(g.hue, g.sat * 0.6, Math.min(0.95, g.light + 0.2));
+  const rim = hsl(g.hue, 0.45, 0.93);
+  const innerColor = hsl(g.accentHue, 0.5, 0.8);
+  const skinTone = furColor.clone().lerp(new THREE.Color('#ffffff'), 0.08);
 
-  const sphere = geo(new THREE.SphereGeometry(1, 64, 48));
-  const lowSphere = geo(new THREE.SphereGeometry(1, 32, 24));
-  const S = g.size;
+  const deform = deformUniforms(body.neck);
+  const fur = furUniforms(0.02 * form.fluff, 118);
+  const furMeshes: THREE.InstancedMesh[] = [];
 
   const root = new THREE.Group();
   const squash = new THREE.Group();
   root.add(squash);
 
-  // Body
-  const body = new THREE.Mesh(sphere, fur);
-  body.scale.set(0.3, 0.27 + g.round * 0.04, 0.28);
-  body.position.y = 0.3;
-  const tummy = new THREE.Mesh(sphere, belly);
-  tummy.scale.set(0.21, 0.2, 0.12);
-  tummy.position.set(0, 0.27, 0.17);
-  squash.add(body, tummy);
+  // ── Body: plush base + instanced fur shells, sharing the head/belly/cheek deformation.
+  const skinMat = mat(plush(null, sheen, { vertexColors: true }));
+  patch(skinMat, { deform, rim });
+  squash.add(new THREE.Mesh(body.geometry, skinMat));
+  // Shells use the SAME plush shading as the skin beneath them, so neither the strands nor the
+  // gaps between them pop (a mismatch reads as glitter). Texture comes from the silhouette and a
+  // gentle root shadow only.
+  const bodyFurMat = mat(plush(null, sheen, { vertexColors: true }));
+  patch(bodyFurMat, { deform, fur });
+  const bodyFur = furShells(body.geometry, bodyFurMat, MAX_SHELLS);
+  squash.add(bodyFur);
+  furMeshes.push(bodyFur);
 
-  // Legs: stubby, paddle during hops.
-  const legGeo = geo(new THREE.CapsuleGeometry(0.065, 0.07, 12, 24));
-  const legs: THREE.Mesh[] = [];
-  for (const [x, z] of [[-0.14, 0.11], [0.14, 0.11], [-0.13, -0.12], [0.13, -0.12]] as const) {
-    const l = new THREE.Mesh(legGeo, fur);
-    l.position.set(x, 0.085, z);
-    legs.push(l);
-    squash.add(l);
-  }
+  // Small furry parts (paws, ears, tail): one shared skin + one shared fur material.
+  const partSkin = mat(plush(furColor, sheen));
+  patch(partSkin, { rim });
+  const partFur = mat(plush(furColor, sheen));
+  patch(partFur, { fur });
+  const furry = (gm: THREE.BufferGeometry, skin: THREE.Material = partSkin, fm: THREE.Material | null = partFur) => {
+    const grp = new THREE.Group();
+    grp.add(new THREE.Mesh(gm, skin));
+    if (fm) {
+      const shells = furShells(gm, fm, MAX_SHELLS);
+      grp.add(shells);
+      furMeshes.push(shells);
+    }
+    return grp;
+  };
+  const ball = geo(new THREE.SphereGeometry(1, 32, 24));
 
-  // Tail
-  const tail = new THREE.Group();
-  tail.position.set(0, 0.26, -0.24);
-  squash.add(tail);
-  if (g.tail === 'plume') {
-    [0.11, 0.095, 0.08].forEach((r, i) => {
-      const s = new THREE.Mesh(sphere, i === 2 ? inner : fur);
-      s.scale.setScalar(r);
-      s.position.set(0, 0.06 + i * 0.1, -0.06 - i * 0.05);
-      tail.add(s);
-    });
-  } else if (g.tail === 'curl') {
-    const t = new THREE.Mesh(geo(new THREE.TorusGeometry(0.1, 0.045, 24, 48, Math.PI * 1.6)), fur);
-    t.rotation.set(0, Math.PI / 2, 0);
-    t.position.set(0, 0.1, -0.06);
-    tail.add(t);
-  } else if (g.tail === 'leaf') {
-    const t = new THREE.Mesh(sphere, inner);
-    t.scale.set(0.11, 0.025, 0.2);
-    t.rotation.x = -0.7;
-    t.position.set(0, 0.1, -0.12);
-    tail.add(t);
-  } else {
-    const t = new THREE.Mesh(sphere, fur);
-    t.scale.setScalar(0.085);
-    tail.add(t);
-  }
-
-  // Head
+  // ── Head group: pivot at the neck; features are seated on the SDF surface.
   const head = new THREE.Group();
-  head.position.set(0, 0.5, 0.02);
+  head.position.copy(body.neck);
   squash.add(head);
-  const skull = new THREE.Mesh(sphere, fur);
-  skull.scale.set(0.37, 0.33, 0.33);
-  skull.position.y = 0.2;
-  head.add(skull);
-  const muzzle = new THREE.Mesh(sphere, belly);
-  muzzle.scale.set(0.15, 0.09, 0.08);
-  muzzle.position.set(0, 0.11, 0.27);
-  head.add(muzzle);
+  const hc = new THREE.Vector3(0, form.head.y, 0);
+  const local = (p: THREE.Vector3) => p.clone().sub(body.neck);
+  const seat = (obj: THREE.Object3D, dir: THREE.Vector3, sink = 0, from = hc) => {
+    const s = surfaceToward(form, from, dir);
+    obj.position.copy(local(s.p.addScaledVector(s.n, -sink)));
+    obj.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), s.n);
+    head.add(obj);
+    return s;
+  };
 
-  // Eyes: glossy, deep, with two catchlights. Lids are fur-coloured caps that drop to blink.
-  const eyes: THREE.Group[] = [];
-  const lids: THREE.Mesh[] = [];
-  const shine: THREE.Mesh[] = [];
-  const er = 0.083 * g.eyeScale;
+  // Eyes
+  const iris = hsl(form.irisHue, 0.62, 0.52);
+  const eyeGeo = geo(eyeGeometry());
+  const er = form.eye.r;
+  const eyes: CreatureParts['eyes'] = [];
   for (const side of [-1, 1]) {
-    const e = new THREE.Group();
-    e.position.set(side * 0.135, 0.205, 0.275);
-    e.rotation.y = side * 0.32;
-    const ball = new THREE.Mesh(sphere, dark);
-    ball.scale.set(er, er * 1.12, er * 0.55);
-    const s1 = new THREE.Mesh(lowSphere, white);
-    s1.scale.setScalar(er * 0.32);
-    s1.position.set(-side * er * 0.28 + er * 0.1, er * 0.42, er * 0.42);
-    const s2 = new THREE.Mesh(lowSphere, white);
-    s2.scale.setScalar(er * 0.14);
-    s2.position.set(side * er * 0.25, -er * 0.35, er * 0.45);
-    const lid = new THREE.Mesh(sphere, fur);
-    lid.scale.set(er * 1.18, er * 1.25, er * 0.7);
-    lid.position.set(0, er * 1.25, 0.01);
-    e.add(ball, s1, s2, lid);
-    head.add(e);
-    eyes.push(e);
-    lids.push(lid);
-    shine.push(s1, s2);
+    const u = eyeUniforms(side, iris, skinTone);
+    const m = new THREE.Mesh(eyeGeo, mat(eyeMaterial(u)));
+    m.scale.set(er, er * 1.14, er * 0.42);
+    const holder = new THREE.Group();
+    holder.add(m);
+    seat(holder, new THREE.Vector3(side * Math.sin(form.eye.spread), 0.1 + form.eye.y, Math.cos(form.eye.spread)), er * 0.12);
+    eyes.push({ mesh: m, u });
   }
 
-  const nose = new THREE.Mesh(lowSphere, dark);
-  nose.scale.set(0.03, 0.022, 0.02);
-  nose.position.set(0, 0.145, 0.345);
-  head.add(nose);
-  const mouth = new THREE.Mesh(geo(new THREE.TorusGeometry(0.03, 0.008, 12, 32, Math.PI)), dark);
-  mouth.rotation.z = Math.PI;
-  mouth.position.set(0, 0.105, 0.343);
-  head.add(mouth);
+  // Nose: a small soft rounded triangle.
+  const dark = mat(new THREE.MeshPhysicalMaterial({ color: hsl(g.hue, 0.3, 0.12), roughness: 0.25, clearcoat: 0.6 }));
+  const nose = new THREE.Mesh(ball, dark);
+  nose.scale.set(0.03, 0.021, 0.018);
+  const noseHolder = new THREE.Group();
+  noseHolder.add(nose);
+  seat(noseHolder, new THREE.Vector3(0, -0.14, 1), -0.004);
+
+  // Mouth: a smile (or a cat "w"), and an open mouth with a tongue for talking/laughing.
+  const mouthHolder = new THREE.Group();
+  seat(mouthHolder, new THREE.Vector3(0, -0.3, 1), -0.002);
+  const arcGeo = geo(new THREE.TorusGeometry(0.032, 0.0075, 10, 28, Math.PI));
+  let smile: THREE.Object3D;
+  if (form.mouth === 'cat') {
+    const w = new THREE.Group();
+    for (const s of [-1, 1]) {
+      const a = new THREE.Mesh(arcGeo, dark);
+      a.rotation.z = Math.PI;
+      a.scale.setScalar(0.8);
+      a.position.x = s * 0.026;
+      w.add(a);
+    }
+    smile = w;
+  } else {
+    const a = new THREE.Mesh(arcGeo, dark);
+    a.rotation.z = Math.PI;
+    smile = a;
+  }
+  mouthHolder.add(smile);
+  const open = new THREE.Group();
+  const cavity = new THREE.Mesh(geo(new THREE.CircleGeometry(0.036, 32)), mat(new THREE.MeshBasicMaterial({ color: '#3a1420' })));
+  const tongue = new THREE.Mesh(geo(new THREE.CircleGeometry(0.024, 28)), mat(new THREE.MeshBasicMaterial({ color: '#f08aa0' })));
+  tongue.position.set(0, -0.012, 0.001);
+  open.add(cavity, tongue);
+  open.position.y = -0.012;
+  open.scale.set(1, 0.001, 1);
+  mouthHolder.add(open);
+
+  // Blush
+  const blushMat = mat(new THREE.MeshBasicMaterial({ color: hsl(350, 0.85, 0.74), transparent: true, opacity: 0.4, depthWrite: false }));
+  const blushGeo = geo(new THREE.CircleGeometry(0.05, 32));
   const cheeks: THREE.Mesh[] = [];
   for (const side of [-1, 1]) {
-    const c = new THREE.Mesh(geo(new THREE.CircleGeometry(0.045, 40)), blush);
-    c.position.set(side * 0.215, 0.12, 0.262);
-    c.rotation.y = side * 0.62;
-    head.add(c);
+    const c = new THREE.Mesh(blushGeo, blushMat.clone());
+    mats.push(c.material as THREE.Material);
+    c.scale.set(1, 0.7, 1);
+    const holder = new THREE.Group();
+    holder.add(c);
+    seat(holder, new THREE.Vector3(side * 0.6, -0.22, 0.76), -0.004);
     cheeks.push(c);
   }
 
-  // Ears on pivots, so springs can swing them.
+  // Brow tufts (worry, surprise, grumpiness), only on some seeds.
+  const brows: THREE.Mesh[] = [];
+  if (form.brow > 0) {
+    const browMat = mat(plush(furColor.clone().multiplyScalar(0.82), sheen));
+    for (const side of [-1, 1]) {
+      const b = new THREE.Mesh(ball, browMat);
+      b.scale.set(0.035 * form.brow, 0.012, 0.014);
+      const holder = new THREE.Group();
+      holder.add(b);
+      seat(holder, new THREE.Vector3(side * 0.42, 0.42, 0.8), -0.004);
+      brows.push(b);
+    }
+  }
+
+  // Ears: lathe profiles by kind, flattened; inner ear in the accent tint.
+  const earProfile = (k: Genome['ears']): [number, number][] => {
+    switch (k) {
+      case 'round': return Array.from({ length: 12 }, (_, i) => { const a = (i / 11) * Math.PI; return [Math.sin(a) * 0.11, 0.11 - Math.cos(a) * 0.11] as [number, number]; });
+      case 'long': return [[0, 0], [0.07, 0.01], [0.085, 0.1], [0.083, 0.22], [0.068, 0.33], [0.04, 0.39], [0, 0.41]];
+      case 'tuft': return [[0, 0], [0.09, 0.0], [0.092, 0.06], [0.07, 0.13], [0.035, 0.19], [0, 0.22]];
+      default: return [[0, 0], [0.1, 0.0], [0.104, 0.07], [0.086, 0.15], [0.05, 0.23], [0.012, 0.275], [0, 0.28]];
+    }
+  };
+  const prof = earProfile(g.ears).map(([x, y]) => new THREE.Vector2(x * form.earWidth, y * form.earLen));
+  const earGeo = geo(new THREE.LatheGeometry(prof, 28));
+  const innerGeo = geo(new THREE.LatheGeometry(prof.map((p) => new THREE.Vector2(p.x * 0.62, p.y * 0.78 + 0.012)), 24));
+  const innerMat = mat(plush(innerColor, hsl(g.accentHue, 0.6, 0.92)));
   const ears: THREE.Group[] = [];
   for (const side of [-1, 1]) {
     const pivot = new THREE.Group();
-    pivot.position.set(side * 0.2, 0.43, -0.02);
-    pivot.rotation.z = -side * (g.ears === 'long' ? 0.75 : 0.38);
-    const outer = new THREE.Mesh();
-    const innerM = new THREE.Mesh();
-    if (g.ears === 'pointed' || g.ears === 'tuft') {
-      const h = g.ears === 'tuft' ? 0.2 : 0.27;
-      outer.geometry = geo(new THREE.ConeGeometry(0.11, h, 40));
-      innerM.geometry = geo(new THREE.ConeGeometry(0.065, h * 0.75, 32));
-      outer.position.y = h / 2;
-      innerM.position.set(0, h * 0.42, 0.045);
-      if (g.ears === 'tuft') {
-        const tip = new THREE.Mesh(sphere, inner);
-        tip.scale.setScalar(0.045);
-        tip.position.y = h + 0.02;
-        pivot.add(tip);
-      }
-    } else if (g.ears === 'round') {
-      outer.geometry = sphere;
-      outer.scale.set(0.12, 0.12, 0.05);
-      outer.position.y = 0.09;
-      innerM.geometry = sphere;
-      innerM.scale.set(0.075, 0.075, 0.03);
-      innerM.position.set(0, 0.09, 0.03);
-    } else {
-      outer.geometry = sphere;
-      outer.scale.set(0.085, 0.24, 0.05);
-      outer.position.y = 0.2;
-      innerM.geometry = sphere;
-      innerM.scale.set(0.05, 0.18, 0.03);
-      innerM.position.set(0, 0.2, 0.03);
+    const s = surfaceToward(form, hc, new THREE.Vector3(side * 0.6, 0.8, -0.08));
+    pivot.position.copy(local(s.p.addScaledVector(s.n, -0.02)));
+    const splay = g.ears === 'long' ? 0.95 : g.ears === 'round' ? 0.55 : 0.32;
+    pivot.rotation.set(-0.12, 0, -side * splay);
+    pivot.userData.z0 = pivot.rotation.z;
+    pivot.userData.x0 = pivot.rotation.x;
+    const outer = furry(earGeo);
+    outer.scale.set(1, 1, 0.42);
+    const inner = new THREE.Mesh(innerGeo, innerMat);
+    inner.scale.set(1, 1, 0.3);
+    inner.position.z = 0.026;
+    pivot.add(outer, inner);
+    if (g.ears === 'tuft') {
+      const tip = furry(ball);
+      tip.scale.setScalar(0.045);
+      tip.position.y = 0.22 * form.earLen;
+      pivot.add(tip);
     }
-    outer.material = fur;
-    innerM.material = inner;
-    pivot.add(outer, innerM);
     head.add(pivot);
     ears.push(pivot);
   }
+
+  // Front paws: tiny mittens that lift, wave and paddle.
+  const paws: THREE.Group[] = [];
+  for (const side of [-1, 1]) {
+    const pivot = new THREE.Group();
+    pivot.position.set(side * 0.15, 0.13, 0.15);
+    const paw = furry(ball);
+    paw.scale.set(0.062, 0.07, 0.072);
+    paw.position.set(0, -0.06, 0.02);
+    pivot.add(paw);
+    squash.add(pivot);
+    paws.push(pivot);
+  }
+
+  // Tail: a chain of joints, each on its own spring in KinView.
+  const tail: THREE.Group[] = [];
+  const tailBase = surfaceToward(form, new THREE.Vector3(0, form.torso.y, 0), new THREE.Vector3(0, 0.05, -1));
+  let parent: THREE.Object3D = squash;
+  const segs: { r: number; len: number; tip?: 'leaf' }[] =
+    g.tail === 'plume' ? [{ r: 0.075, len: 0.06 }, { r: 0.09, len: 0.08 }, { r: 0.095, len: 0.08 }, { r: 0.075, len: 0.07 }]
+      : g.tail === 'curl' ? [{ r: 0.05, len: 0.05 }, { r: 0.048, len: 0.05 }, { r: 0.045, len: 0.05 }, { r: 0.04, len: 0.045 }, { r: 0.034, len: 0.04 }]
+        : g.tail === 'leaf' ? [{ r: 0.04, len: 0.05 }, { r: 0.035, len: 0.06, tip: 'leaf' }]
+          : [{ r: 0.075, len: 0.02 }];
+  segs.forEach((sg, i) => {
+    const joint = new THREE.Group();
+    if (i === 0) joint.position.copy(tailBase.p).addScaledVector(tailBase.n, -0.03);
+    else joint.position.set(0, 0, -segs[i - 1]!.len * form.tailLen);
+    // Rest pose: the plume sweeps up and back (never above the head), the curl rolls over.
+    const rest = g.tail === 'curl' ? -0.55 : g.tail === 'plume' ? (i === 0 ? -0.5 : -0.14) : -0.3;
+    joint.rotation.x = rest;
+    joint.userData.x0 = rest;
+    if (sg.tip === 'leaf') {
+      const leaf = new THREE.Mesh(ball, innerMat);
+      leaf.scale.set(0.07, 0.016, 0.12);
+      leaf.position.z = -0.08;
+      joint.add(leaf);
+    } else {
+      const seg = furry(ball);
+      seg.scale.set(sg.r, sg.r, sg.r * 1.15);
+      seg.position.z = -sg.len * 0.5;
+      joint.add(seg);
+    }
+    parent.add(joint);
+    parent = joint;
+    tail.push(joint);
+  });
 
   // Accent: the species flourish. Emissive, so it glows softly at night.
   let accent: THREE.Object3D | null = null;
   let accentMat: THREE.MeshStandardMaterial | null = null;
   if (g.accent !== 'none') {
     const grp = new THREE.Group();
-    grp.position.set(0, 0.53, 0.06);
     if (g.accent === 'crystal') {
-      accentMat = mat(new THREE.MeshStandardMaterial({ color: hsl(g.accentHue, 0.7, 0.75), emissive: hsl(g.accentHue, 0.9, 0.55), emissiveIntensity: 0.6, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.92 }));
+      accentMat = mat(new THREE.MeshStandardMaterial({ color: hsl(g.accentHue, 0.7, 0.75), emissive: hsl(g.accentHue, 0.9, 0.55), emissiveIntensity: 0.6, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.94 }));
       const oct = geo(new THREE.OctahedronGeometry(1, 0));
-      [[0, 0.04, 0, 0.065], [-0.06, 0, 0.01, 0.04], [0.06, 0, 0.01, 0.045]].forEach(([x, y, z, s]) => {
+      [[0, 0.05, 0, 0.06], [-0.055, 0.015, 0.01, 0.036], [0.055, 0.015, 0.01, 0.04]].forEach(([x, y, z, s]) => {
         const m = new THREE.Mesh(oct, accentMat!);
         m.scale.set(s!, s! * 1.7, s!);
         m.position.set(x!, y!, z!);
@@ -228,39 +294,50 @@ export function buildCreature(g: Genome): CreatureParts {
       });
     } else if (g.accent === 'sprout') {
       accentMat = mat(new THREE.MeshStandardMaterial({ color: hsl(125, 0.5, 0.55), emissive: hsl(125, 0.7, 0.3), emissiveIntensity: 0.15, roughness: 0.6 }));
-      const stem = new THREE.Mesh(geo(new THREE.CylinderGeometry(0.008, 0.012, 0.09, 6)), accentMat);
-      stem.position.y = 0.03;
+      const stem = new THREE.Mesh(geo(new THREE.CylinderGeometry(0.007, 0.011, 0.08, 8)), accentMat);
+      stem.position.y = 0.035;
       grp.add(stem);
       for (const side of [-1, 1]) {
-        const leaf = new THREE.Mesh(sphere, accentMat);
-        leaf.scale.set(0.055, 0.014, 0.03);
-        leaf.position.set(side * 0.05, 0.08, 0);
+        const leaf = new THREE.Mesh(ball, accentMat);
+        leaf.scale.set(0.05, 0.012, 0.028);
+        leaf.position.set(side * 0.045, 0.078, 0);
         leaf.rotation.z = side * 0.5;
         grp.add(leaf);
       }
     } else {
-      accentMat = mat(new THREE.MeshStandardMaterial({ color: hsl(28, 1, 0.6), emissive: hsl(22, 1, 0.5), emissiveIntensity: 1.2, roughness: 0.4, transparent: true, opacity: 0.9 }));
-      const flame = new THREE.Mesh(geo(new THREE.ConeGeometry(0.045, 0.13, 12)), accentMat);
-      flame.position.y = 0.05;
-      const core = new THREE.Mesh(sphere, accentMat);
-      core.scale.setScalar(0.045);
+      accentMat = mat(new THREE.MeshStandardMaterial({ color: hsl(28, 1, 0.6), emissive: hsl(22, 1, 0.5), emissiveIntensity: 1.2, roughness: 0.4, transparent: true, opacity: 0.92 }));
+      const flame = new THREE.Mesh(geo(new THREE.ConeGeometry(0.04, 0.12, 20)), accentMat);
+      flame.position.y = 0.06;
+      const core = new THREE.Mesh(ball, accentMat);
+      core.scale.setScalar(0.042);
+      core.position.y = 0.02;
       grp.add(flame, core);
     }
+    const s = surfaceToward(form, hc, new THREE.Vector3(0, 1, 0.22));
+    grp.position.copy(local(s.p.addScaledVector(s.n, -0.01)));
     head.add(grp);
     accent = grp;
   }
 
-  root.scale.setScalar(S);
-  root.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = false;
-  });
+  root.scale.setScalar(g.size);
 
-  return {
-    root, squash, head, eyes, lids, shine, ears, tail, legs, mouth, cheeks, accent, accentMat,
-    bodyMats: [fur, belly, inner],
+  const parts: CreatureParts = {
+    root, squash, head, eyes, ears, tail, paws, cheeks, brows, accent, accentMat, deform, fur, furMeshes, form,
+    mouth: { smile, open, tongue },
+    headCenter: hc,
+    setFurTier(tier: number) {
+      const n = FUR_TIERS[Math.max(0, Math.min(FUR_TIERS.length - 1, tier))]!;
+      fur.uShells.value = Math.max(1, n);
+      for (const m of furMeshes) {
+        m.count = n;
+        m.visible = n > 0;
+      }
+    },
     dispose() {
       geos.forEach((x) => x.dispose());
       mats.forEach((x) => x.dispose());
     },
   };
+  parts.setFurTier(defaultTier());
+  return parts;
 }
