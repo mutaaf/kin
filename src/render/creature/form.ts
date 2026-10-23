@@ -93,8 +93,10 @@ export function sdf(f: Form, x: number, y: number, z: number): number {
   const T = f.torso;
   let b = ellipsoid(x, y - T.y, z, T.rx, T.ry, T.rz);
   b = smin(b, sphere(x, y - (T.y - 0.025), z - 0.075, f.tummy), 0.12);
-  // Stubby back feet
-  b = smin(b, ellipsoid(Math.abs(x) - 0.13, y - f.foot * 0.75, z + 0.04, f.foot * 1.05, f.foot * 0.75, f.foot * 1.3), 0.07);
+  // Hip pads where the feet attach. The feet themselves are separate meshes (creatureMesh.ts) so
+  // they can plant on the ground and step (src/render/creature/gait.ts) instead of skating along
+  // with a body they're baked into.
+  b = smin(b, ellipsoid(Math.abs(x) - 0.125, y - f.foot * 1.25, z + 0.02, f.foot * 0.85, f.foot * 0.7, f.foot * 0.95), 0.07);
   // A small smooth join: a soft neck crease so head and body read as two shapes.
   return smin(d, b, 0.11);
 }
