@@ -21,6 +21,7 @@ import { MultiTransport, RelayTransport, relayUrl } from './transport/relay';
 import { watchStitch } from './stitch/gesture';
 import { Hud } from './ui/hud';
 import { attachWorld } from './world/attach';
+import { ArController } from './ar';
 import * as careModel from './core/care';
 import { captureRegion, live, liveStateFrom, needsFromDrives } from './platform/live';
 import { initNative, isNative, setHaptics, tap } from './platform/native';
@@ -99,6 +100,17 @@ export async function startApp(slot: string) {
         reducedMotion: () => settings.reducedMotion,
       });
   addEventListener('pagehide', () => world?.save());
+
+  // AR (src/ar): the real room through the camera is KIN's world on capable phones (Pokémon GO
+  // AR+ style), chosen from a capability ladder and live device conditions; the habitat elsewhere.
+  const ar = embed ? null : new ArController(stage, kv);
+  void ar?.boot();
+  type WorldHooks = { noticeReal?: (label: string, at: THREE.Vector3) => void; physics?: { setEnvironment?: (env: unknown) => void } };
+  const hooks = () => world?.world as unknown as WorldHooks | undefined;
+  ar?.on((e) => {
+    if (e.type === 'object-seen') hooks()?.noticeReal?.(e.object.label, e.object.local);
+    if ((e.type === 'surfaces' || e.type === 'mesh') && ar.environment) hooks()?.physics?.setEnvironment?.(ar.environment);
+  });
   // Peer ids must be unique across devices (every phone's first home is slot "home").
   let device = kv.get('kin:device');
   if (!device) {
@@ -195,7 +207,7 @@ export async function startApp(slot: string) {
     if (recent.length > 8) recent.shift();
     current = { action: d.action, until: Date.now() + d.durationMs, why: d.why };
     const firstGuest = [...guests.values()].find((g) => g.hosting);
-    view.look = null;
+    view.look = ar?.active && Math.random() < 0.15 ? ar.viewerLocal()?.setY(0.6) ?? null : null;
     view.applyAction(d.action, {
       edgeX: c.peerEdge ? stage.edgeX(c.peerEdge as 'left' | 'right', view.pos.z, 0) : undefined,
       guest: firstGuest?.view.pos ?? null,
@@ -553,6 +565,9 @@ export async function startApp(slot: string) {
       view.look = stage.toWorld({ x: e.clientX, y: e.clientY }, 1.2);
       if (zone) view.touch(zone, 0.5);
       view.say(view.action === 'sleep' ? 'grumble' : 'hello');
+    } else if (tap && ar?.active) {
+      // In AR, a tap on the room moves the KIN there (it hops to the real surface you tapped).
+      void ar.placeAt(e.clientX, e.clientY);
     } else if (tap && !view.busy && kin.placement.kind === 'home') {
       // "Look over there": it turns, and if curious enough, trots over.
       const p = stage.toWorld({ x: e.clientX, y: e.clientY }, 0);
@@ -669,6 +684,7 @@ export async function startApp(slot: string) {
       save();
     },
     release: () => {
+      void ar?.stop();
       void live.end();
       store.wipe();
       location.replace(location.pathname + '?k=' + slot);
