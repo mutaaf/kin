@@ -19,6 +19,12 @@ export interface CreatureParts {
   ears: THREE.Group[];
   tail: THREE.Group[];
   paws: THREE.Group[];
+  /**
+   * Back feet, children of `root` (not `squash`): KinView places them in world space each frame
+   * so they stay planted while the body moves over them. `hip` is each foot's rest point in root
+   * space (size 1); the sole sits at y = 0.
+   */
+  feet: { group: THREE.Group; hip: THREE.Vector3 }[];
   mouth: { smile: THREE.Object3D; open: THREE.Group; tongue: THREE.Mesh };
   cheeks: THREE.Mesh[];
   brows: THREE.Mesh[];
@@ -244,6 +250,22 @@ export function buildCreature(g: Genome): CreatureParts {
     paws.push(pivot);
   }
 
+  // Back feet: little beans with toe pads, separate from the body so they can plant and step.
+  const feet: CreatureParts['feet'] = [];
+  const padMat = mat(new THREE.MeshStandardMaterial({ color: hsl(g.accentHue, 0.45, 0.8), roughness: 0.7 }));
+  for (const side of [-1, 1]) {
+    const group = new THREE.Group();
+    const bean = furry(ball);
+    bean.scale.set(form.foot * 1.0, form.foot * 0.72, form.foot * 1.3);
+    bean.position.set(0, form.foot * 0.72, 0.012);
+    const pad = new THREE.Mesh(ball, padMat);
+    pad.scale.set(form.foot * 0.55, form.foot * 0.12, form.foot * 0.6);
+    pad.position.set(0, 0.004, 0.02);
+    group.add(bean, pad);
+    root.add(group);
+    feet.push({ group, hip: new THREE.Vector3(side * 0.135, 0, 0.03) });
+  }
+
   // Tail: a chain of joints, each on its own spring in KinView.
   const tail: THREE.Group[] = [];
   const tailBase = surfaceToward(form, new THREE.Vector3(0, form.torso.y, 0), new THREE.Vector3(0, 0.05, -1));
@@ -322,7 +344,7 @@ export function buildCreature(g: Genome): CreatureParts {
   root.scale.setScalar(g.size);
 
   const parts: CreatureParts = {
-    root, squash, head, eyes, ears, tail, paws, cheeks, brows, accent, accentMat, deform, fur, furMeshes, form,
+    root, squash, head, eyes, ears, tail, paws, feet, cheeks, brows, accent, accentMat, deform, fur, furMeshes, form,
     mouth: { smile, open, tongue },
     headCenter: hc,
     setFurTier(tier: number) {

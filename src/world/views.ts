@@ -388,3 +388,80 @@ export function streakView() {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.012), new THREE.MeshBasicMaterial({ color: '#FFFFFF', transparent: true, opacity: 0, depthWrite: false, fog: false }));
   return m;
 }
+
+/**
+ * Contact shadows for every physical object, in ONE instanced draw: a soft blob on the surface
+ * under each toy (found by a ray down, so it lies on a block or a table, not just the lawn),
+ * tight and dark when the toy rests on it, wider and fainter as it rises. This is what makes
+ * things read as touching the ground instead of hovering.
+ */
+export class ContactShadows {
+  readonly mesh: THREE.InstancedMesh;
+  private alpha: THREE.InstancedBufferAttribute;
+  private n = 0;
+  private m = new THREE.Matrix4();
+  private q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
+  private s = new THREE.Vector3();
+  private p = new THREE.Vector3();
+
+  constructor(readonly max = 48) {
+    const geo = new THREE.PlaneGeometry(1, 1);
+    this.alpha = new THREE.InstancedBufferAttribute(new Float32Array(max), 1);
+    geo.setAttribute('aAlpha', this.alpha);
+    const sm = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      uniforms: { uMap: { value: blobTexture() } },
+      vertexShader: /* glsl */ `
+        attribute float aAlpha; varying float vA; varying vec2 vUv;
+        void main() { vA = aAlpha; vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0); }`,
+      fragmentShader: /* glsl */ `
+        uniform sampler2D uMap; varying float vA; varying vec2 vUv;
+        void main() { float a = texture2D(uMap, vUv).a * vA; if (a < 0.004) discard; gl_FragColor = vec4(0.04, 0.055, 0.08, a); }`,
+    });
+    this.mesh = new THREE.InstancedMesh(geo, sm, max);
+    this.mesh.count = 0;
+    this.mesh.renderOrder = 1;
+    this.mesh.frustumCulled = false;
+  }
+
+  begin() {
+    this.n = 0;
+  }
+
+  /** A shadow for an object of footprint radius `r` whose bottom is `gap` above surface `y`. */
+  add(x: number, y: number, z: number, r: number, gap: number) {
+    if (this.n >= this.max) return;
+    const lift = Math.max(0, gap);
+    const spread = 1 + Math.min(1.5, lift * 3.5);
+    const a = Math.max(0, 0.62 * (1 - Math.min(1, lift * 1.8))) / Math.sqrt(spread);
+    this.s.set(r * 2.3 * spread, r * 2.3 * spread, 1);
+    this.p.set(x, y + 0.004, z);
+    this.m.compose(this.p, this.q, this.s);
+    this.mesh.setMatrixAt(this.n, this.m);
+    this.alpha.setX(this.n, a);
+    this.n++;
+  }
+
+  end() {
+    this.mesh.count = this.n;
+    this.mesh.instanceMatrix.needsUpdate = true;
+    this.alpha.needsUpdate = true;
+  }
+}
+
+let blob: THREE.Texture | null = null;
+function blobTexture() {
+  if (blob) return blob;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const x = c.getContext('2d')!;
+  const grd = x.createRadialGradient(32, 32, 1, 32, 32, 32);
+  grd.addColorStop(0, 'rgba(0,0,0,1)');
+  grd.addColorStop(0.45, 'rgba(0,0,0,0.55)');
+  grd.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = grd;
+  x.fillRect(0, 0, 64, 64);
+  blob = new THREE.CanvasTexture(c);
+  return blob;
+}

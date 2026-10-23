@@ -21,6 +21,19 @@
 //   view.setAge(days)            → baby → young proportions (days since hatch).
 //   view.setFurTier(0..3)        → fur quality (0 = no shells). It also self-tunes from frame time.
 //   view.reducedMotion = true    → calmer idles (no spins/rolls), same personality.
+//
+// ── Realism hooks (docs/REALISM.md; the world sets these when physics loads) ───────────────────
+//   view.groundAt = (x, z, fromY) => y   the surface under a point (lawn, blocks, AR tables).
+//                                        Feet plant on it; the body follows it. Default: y = 0.
+//   view.mover = (at, delta) => pos      filters walking through the character controller
+//                                        (slides along scenery, shoves toys). Default: none.
+//   view.walking                         true on frames where walking moved the body (the world
+//                                        then lets the controller own the capsule).
+//   view.reach(point | null)             bring the mouth to a point (eating, sniffing): head IK +
+//                                        a lean of the body.
+//   view.mouthWorld()                    where a carried toy sits (fetch).
+//   view.bumped(fromDir, strength)       something hit it: stagger, squash, look at it.
+//   view.groundY                         the height it stands at (for shadows, AR anchoring).
 // ────────────────────────────────────────────────────────────────────────────────────────────────
 
 import * as THREE from 'three';
@@ -29,6 +42,7 @@ import type { Action } from '../core/brain';
 import type { Reaction } from '../core/creature';
 import { makeTraits, type Genome, type Traits } from '../core/genome';
 import { hopAt, toLocal, type Hop, type Rect } from './choreo';
+import { DEFAULT_GAIT, Gait, type GaitFrame, type GroundFn } from './creature/gait';
 import { buildCreature, type CreatureParts } from './creatureMesh';
 import { Emotes, type EmoteKind } from './emotes';
 import { GROUND_Z, type Stage } from './stage';
@@ -110,6 +124,14 @@ export class KinView {
   petting = 0;
   visible = true;
   reducedMotion = false;
+  /** The surface under a point. Physics (and AR) replace the flat lawn. */
+  groundAt: GroundFn = () => 0;
+  /** Walking goes through this (the physics character controller) when set. */
+  mover: ((at: { x: number; y: number; z: number }, delta: { x: number; y: number; z: number }) => { x: number; y: number; z: number }) | null = null;
+  /** True on frames in which walking moved the body. */
+  walking = false;
+  /** Height of the surface it stands on. */
+  groundY = 0;
 
   private shadow: THREE.Mesh;
   private emotes: Emotes;
@@ -155,12 +177,30 @@ export class KinView {
   private pawWave = 0;
   private age = 0;
   private frameAvg = 1 / 60;
+  private gait: Gait;
+  private gf: GaitFrame | null = null;
+  /** This frame's gait state (feet, contacts), for debug overlays and the world's footfall cues. */
+  get gaitFrame(): GaitFrame | null {
+    return this.gf;
+  }
+  private physY = 0;
+  private stuck = 0;
+  private lastYaw = 0;
+  private lean = { pitch: 0, roll: 0 };
+  private reachAt: THREE.Vector3 | null = null;
+  private reachK = 0;
+  private stagger = { x: 0, z: 0, k: 0 };
+  private wasWalking = false;
+  /** Set by any walking step since the last update (consumed at the end of update). */
+  private walked = false;
 
   constructor(readonly genome: Genome, private stage: Stage) {
     this.parts = buildCreature(genome);
     this.traits = makeTraits(genome.seed);
     this.voice = new Voice(genome);
     this.emotes = new Emotes(stage.world);
+    // Bouncier, more energetic KIN switch to hopping sooner and bob more.
+    this.gait = new Gait({ ...DEFAULT_GAIT, size: genome.size, bounce: Math.min(1, this.traits.playfulness * 0.6 + this.traits.energy * 0.4) });
     this.shadow = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
       new THREE.MeshBasicMaterial({ map: shadowTex(), transparent: true, depthWrite: false }),
@@ -188,6 +228,7 @@ export class KinView {
   script(tasks: Task[]) {
     if (this.cur?.started) this.cur.task.exit?.();
     this.cur = null;
+    this.reachAt = null; // a new intent straightens up (an interrupted meal never leaves it bent)
     // Task lists come from several systems (brain, world actors, crossing); never queue a hole.
     this.queue = tasks.filter(Boolean);
   }
@@ -401,8 +442,45 @@ export class KinView {
 
   placeAt(x: number, z: number) {
     this.pos.set(x, 0, z);
-    this.lastWorld.set(x, 0, z);
     this.target = null;
+    // Stand on whatever is there, both feet planted under the hips.
+    this.gait.plantAll(x, z, this.yaw, this.groundAt);
+    this.groundY = this.gait.groundY;
+    this.lastWorld.set(x, this.groundY, z);
+    this.physY = this.groundY;
+  }
+
+  // ───────────── physical interactions
+
+  /** Bring the mouth to a world point (eat, sniff), or null to straighten up. */
+  reach(point: THREE.Vector3 | null) {
+    this.reachAt = point ? point.clone() : null;
+  }
+
+  /** World position of the mouth: where a carried toy sits. */
+  mouthWorld(): THREE.Vector3 {
+    const p = new THREE.Vector3();
+    this.parts.mouth.open.getWorldPosition(p);
+    // A toy held in the mouth sits just in front of the lips, not inside the head.
+    const fwd = new THREE.Vector3(Math.sin(this.yaw), -0.25, Math.cos(this.yaw)).normalize();
+    return p.addScaledVector(fwd, 0.07 * this.genome.size);
+  }
+
+  /** Something hit it (a thrown ball): stagger away from the hit, squash, look at what did it. */
+  bumped(from: THREE.Vector3, strength: number) {
+    const s = Math.max(0, Math.min(1, strength));
+    const away = this.pos.clone().sub(from).setY(0);
+    if (away.lengthSq() < 1e-6) away.set(Math.sin(this.yaw + Math.PI), 0, Math.cos(this.yaw + Math.PI));
+    away.normalize();
+    this.stagger = { x: away.x * (0.35 + s * 0.5), z: away.z * (0.35 + s * 0.5), k: 1 };
+    this.squashImpulse(-0.35 - s * 0.35);
+    this.earFlick(1 + s);
+    this.look = from.clone().setY(this.groundY + 0.3);
+    this.express(s > 0.5 ? 'surprised' : 'curious', 900);
+    if (s > 0.35) this.say('hey');
+    setTimeout(() => {
+      if (this.look && this.look.distanceTo(from) < 0.6) this.look = null;
+    }, 1400);
   }
 
   // ───────────── expression, voice, emotes, growth
@@ -735,23 +813,53 @@ export class KinView {
     requestAnimationFrame(step);
   }
 
-  private stepToward(to: THREE.Vector3, speed: number, dt: number) {
+  /**
+   * Walk toward a point. The body turns first when the target is behind (feet step around), then
+   * moves through the physics character controller when one is attached, so it slides along the
+   * mushroom and nudges toys instead of passing through them. The feet and the bob come from the
+   * gait (planted feet, never skating). Returns true on arrival, or when it's been blocked for a
+   * while (an unreachable spot: give up rather than walk in place).
+   */
+  /**
+   * One frame of walking toward a point, stopping `stop` short of it (chasing a toy, reaching a
+   * berry). For systems that drive the KIN from their own tasks (src/world). True on arrival.
+   */
+  walkToward(to: THREE.Vector3, speed: number, dt: number, stop = 0.03): boolean {
+    return this.stepToward(to, speed, dt, stop);
+  }
+
+  private stepToward(to: THREE.Vector3, speed: number, dt: number, stop = 0.03) {
     const d = to.clone().sub(this.pos).setY(0);
-    const dist = d.length();
+    const dist = d.length() - Math.max(0, stop - 0.03);
+    this.height = 0;
     if (dist < 0.03) {
-      this.height = 0;
+      this.stuck = 0;
       return true;
     }
-    const v = Math.min(dist, speed * dt);
-    this.pos.addScaledVector(d.normalize(), v);
-    this.yaw = turn(this.yaw, Math.atan2(d.x, d.z), dt * 10);
-    // Hop-walk: little bounces, squash on each landing, paws paddling.
-    const prev = this.stepPhase;
+    const want = Math.atan2(d.x, d.z);
+    const off = Math.abs(wrap(want - this.yaw));
+    this.yaw = turn(this.yaw, want, dt * (off > 1.2 ? 6 : 10));
+    // Ease into the walk: slow while still facing away (it turns, stepping, before it strides).
+    const facing = Math.max(0.15, Math.cos(Math.min(Math.PI / 2, off)));
+    const v = Math.min(dist, speed * dt * facing);
+    const step = d.normalize().multiplyScalar(v);
+    let moved = v;
+    if (this.mover) {
+      const r = this.mover({ x: this.pos.x, y: this.physY, z: this.pos.z }, { x: step.x, y: -0.02, z: step.z });
+      moved = Math.hypot(r.x - this.pos.x, r.z - this.pos.z);
+      this.pos.x = r.x;
+      this.pos.z = r.z;
+      this.physY = r.y;
+    } else {
+      this.pos.add(step);
+    }
+    this.walked = true;
     this.stepPhase += dt * (3.2 + speed * 1.5);
-    this.height = Math.abs(Math.sin(this.stepPhase * Math.PI)) * 0.07 * Math.min(1, speed);
-    const pad = Math.sin(this.stepPhase * Math.PI);
-    this.pawPose = [Math.max(0, pad) * 0.45, Math.max(0, -pad) * 0.45];
-    if (Math.floor(prev) !== Math.floor(this.stepPhase)) this.squashImpulse(-0.12);
+    this.stuck = moved < v * 0.25 && facing > 0.6 ? this.stuck + dt : 0;
+    if (this.stuck > 0.7) {
+      this.stuck = 0;
+      return true;
+    }
     return false;
   }
 
@@ -808,7 +916,7 @@ export class KinView {
     this.wasWet = wet;
 
     // Velocity / acceleration (for squish, fur lag and follow-through)
-    const world = this.pos.clone().setY(this.height);
+    const world = this.pos.clone().setY(this.groundY + this.height);
     this.vel.copy(world).sub(this.lastWorld).divideScalar(Math.max(dt, 1e-3));
     const acc = this.vel.clone().sub(this.lastVel).divideScalar(Math.max(dt, 1e-3));
     this.lastWorld.copy(world);
@@ -816,8 +924,56 @@ export class KinView {
     const toLocalDir = (v: THREE.Vector3) => v.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), -this.yaw);
     const accL = toLocalDir(acc).clampLength(0, 30);
 
+    // ── Stagger: something hit it. A short shove through the controller, decaying fast.
+    if (this.stagger.k > 0.01) {
+      const k = this.stagger.k;
+      const d = { x: this.stagger.x * k * dt * 2.2, y: -0.02, z: this.stagger.z * k * dt * 2.2 };
+      if (this.mover) {
+        const r = this.mover({ x: this.pos.x, y: this.physY, z: this.pos.z }, d);
+        this.pos.x = r.x;
+        this.pos.z = r.z;
+        this.physY = r.y;
+      } else {
+        this.pos.x += d.x;
+        this.pos.z += d.z;
+      }
+      this.walked = true;
+      this.stagger.k *= Math.pow(0.02, dt);
+    }
+
+    // ── Gait: planted feet, stepping, and the body riding on them (src/render/creature/gait.ts).
+    // In the air, mid-spin or rolled over, the feet ride with the body; they re-plant on landing.
+    const free = this.height > 0.02 || Math.abs(this.spin) > 0.01 || Math.abs(this.roll) > 0.35 || !this.visible || this.appear < 0.5;
+    const gf = this.gait.update({
+      x: this.pos.x, z: this.pos.z, yaw: this.yaw + this.spin, vx: this.walked ? this.vel.x : 0, vz: this.walked ? this.vel.z : 0, dt,
+      ground: this.groundAt, free, freeHeight: this.height,
+    });
+    this.gf = gf;
+    this.groundY = gf.groundY;
+    if (gf.touchdowns.length && !free) this.squashImpulse(gf.hopping ? -0.32 : -0.07);
+    // Front paws swing opposite the back feet while walking (arms counter the legs).
+    if (this.walked) {
+      const l0 = gf.feet[0]!.lift;
+      const l1 = gf.feet[1]!.lift;
+      this.pawPose = gf.hopping ? [0.35 * Math.max(l0, l1), 0.35 * Math.max(l0, l1)] : [l1 * 0.32, l0 * 0.32];
+      this.wasWalking = true;
+    } else if (this.wasWalking) {
+      this.wasWalking = false;
+      this.pawPose = [0, 0];
+    }
+    // Lean: forward into acceleration, back when braking, into turns (centripetal), all soft.
+    const yawRate = wrap(this.yaw - this.lastYaw) / Math.max(dt, 1e-3);
+    this.lastYaw = this.yaw;
+    const fwdSpeed = this.walked ? Math.hypot(this.vel.x, this.vel.z) : 0;
+    const leanPitch = Math.max(-0.16, Math.min(0.2, accL.z * 0.012 + fwdSpeed * 0.05));
+    const leanRoll = Math.max(-0.18, Math.min(0.18, -yawRate * fwdSpeed * 0.08));
+    this.lean.pitch += (leanPitch - this.lean.pitch) * Math.min(1, dt * 7);
+    this.lean.roll += (leanRoll - this.lean.roll) * Math.min(1, dt * 6);
+    // Reach: lower the head and lean the body until the mouth meets the point (eating, sniffing).
+    this.reachK += ((this.reachAt ? 1 : 0) - this.reachK) * Math.min(1, dt * 6);
+
     // Head look: target, or idle glances around the diorama.
-    let lookAt = this.look;
+    let lookAt = this.reachAt ?? this.look;
     if (!lookAt) {
       if (now > this.glanceAt) {
         this.glanceAt = now + 1400 + Math.random() * 2600;
@@ -826,9 +982,12 @@ export class KinView {
       lookAt = this.glance;
     }
     const rel = lookAt.clone().sub(this.pos);
+    rel.y -= this.groundY;
     const wantYaw = Math.atan2(rel.x, rel.z) - this.yaw - this.spin;
     const yawRel = Math.max(-1.0, Math.min(1.0, wrap(wantYaw)));
-    const wantPitch = Math.max(-0.4, Math.min(0.4, -Math.atan2(rel.y - 0.7, Math.hypot(rel.x, rel.z))));
+    // Reaching (eating, sniffing) lets the head tip much further down to bring the mouth to it.
+    const pitchMax = 0.4 + this.reachK * 0.35;
+    const wantPitch = Math.max(-0.4, Math.min(pitchMax, -Math.atan2(rel.y - 0.7, Math.hypot(rel.x, rel.z))));
     this.headYaw += (yawRel - this.headYaw) * Math.min(1, dt * 7);
     this.headPitch += (wantPitch - this.headPitch) * Math.min(1, dt * 5);
     if (Math.abs(this.headYaw) > 0.8 && !this.cur?.task.run) this.yaw = turn(this.yaw, this.yaw + this.headYaw * 0.5, dt * 2);
@@ -1011,18 +1170,43 @@ export class KinView {
     P.fur.uFurLen.value = 0.02 * P.form.fluff * (1.12 - this.age * 0.2);
 
     // Compose transform
+    // The body stands on the ground under it (lawn, a block, a real table), rides the step bob,
+    // follows the terrain slope, and leans into motion. Order YXZ: yaw first, then pitch and roll
+    // in the body's own frame.
     const R = P.root;
     R.visible = this.visible && this.appear > 0.01;
-    R.position.set(this.pos.x + shake, this.height, this.pos.z);
-    R.rotation.set(0, this.yaw + this.spin, 0);
+    R.position.set(this.pos.x + shake, this.groundY + this.height + gf.bob, this.pos.z);
+    R.rotation.order = 'YXZ';
+    R.rotation.set(
+      gf.slopePitch + this.lean.pitch + this.reachK * 0.3,
+      this.yaw + this.spin,
+      gf.slopeRoll + gf.roll + this.lean.roll,
+    );
     R.scale.setScalar(this.genome.size * easeOutBack(this.appear));
+    // Feet: placed in world space (planted feet stay put), expressed in the root's local frame.
+    R.updateMatrixWorld(true);
+    const inv = R.matrixWorld.clone().invert();
+    for (const [i, ft] of P.feet.entries()) {
+      const f = gf.feet[i]!;
+      const local = new THREE.Vector3(f.pos.x, f.pos.y, f.pos.z).applyMatrix4(inv);
+      ft.group.position.copy(local);
+      // Undo the body's pitch/roll on a planted foot so the sole lies flat on its surface; a
+      // swinging foot points its toe down a little.
+      ft.group.rotation.set(f.planted ? -R.rotation.x : -R.rotation.x + f.lift * 0.45, 0, f.planted ? -R.rotation.z : -R.rotation.z * 0.5);
+    }
+    // Contact shadow on the surface it stands on: tighter and darker in contact, soft when airborne.
     this.shadow.visible = R.visible;
-    this.shadow.position.set(this.pos.x, 0.006, this.pos.z);
-    const sh = 0.78 * this.genome.size * (1 - Math.min(0.6, this.height * 0.5)) * this.appear;
+    this.shadow.position.set(this.pos.x, this.groundY + 0.006, this.pos.z);
+    const air = this.height + gf.bob;
+    const sh = 0.78 * this.genome.size * (1 - Math.min(0.6, air * 0.9)) * this.appear;
     this.shadow.scale.set(sh, sh * 0.8, 1);
-    (this.shadow.material as THREE.MeshBasicMaterial).opacity = 1 - Math.min(0.7, this.height * 0.6);
+    (this.shadow.material as THREE.MeshBasicMaterial).opacity = 1 - Math.min(0.75, air * 1.6);
 
     this.emotes.update(now, this.headTop());
+    // Walking this frame (from inside update, or by a caller just before it) is reported for the
+    // world (which then lets the character controller own the capsule) and then consumed.
+    this.walking = this.walked;
+    this.walked = false;
   }
 
   /** Measure frame time and walk the fur quality ladder (shared by all creatures on the page). */

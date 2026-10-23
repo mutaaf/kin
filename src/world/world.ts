@@ -17,7 +17,7 @@ import {
   featherStep, flockStep, leafStep, newFeather, newFlock, newSkin, puddleStep, skinEnergy, skinStep, snowStep, spawnLeaf, v3, wind,
   type Feather, type Flock, type Leaf, type Puddle, type Skin, type V3,
 } from './matter';
-import type { PBody, Physics } from './physics';
+import type { PBody, Physics, Shape } from './physics';
 import * as V from './views';
 
 type Task = Parameters<KinView['script']>[0][number];
@@ -104,6 +104,10 @@ export class World {
   private streakAt = 0;
   /** A toy in the KIN's mouth (fetch): moved to its head before every physics step. */
   private carrying: PBody | null = null;
+  /** Contact shadows for every physical object (one instanced draw). */
+  private shadows: V.ContactShadows | null = null;
+  /** When the KIN last flinched from a hit (cooldown). */
+  private hitAt = 0;
   private wetKin = 0;
   private post: { roll: number; wiggle: number } = { roll: 0, wiggle: 0 };
   private blanketOn: THREE.Object3D | null = null;
@@ -365,9 +369,17 @@ export class World {
     const n = DECOR.nest;
     for (let i = 0; i < 10; i++) {
       const a = (i / 10) * Math.PI * 2;
-      p.addStatic({ ball: n.tubeR * 0.9 }, { x: n.x + Math.cos(a) * n.ringR, y: 0.07, z: n.z + Math.sin(a) * n.ringR * 0.8 });
+      // The woven rim: toys bounce off it and feet stand on it, but the KIN climbs over it.
+      p.addStatic({ ball: n.tubeR * 0.9 }, { x: n.x + Math.cos(a) * n.ringR, y: 0.07, z: n.z + Math.sin(a) * n.ringR * 0.8 }, { passable: true });
     }
     p.addStatic({ cylinder: [0.3, 0.07] }, { x: DECOR.plant.x, y: 0.3, z: DECOR.plant.z });
+    // The KIN becomes a physical character: its feet find surfaces through physics, and walking
+    // goes through the character controller (src/world/physics.ts moveKin).
+    const view = this.d.view;
+    view.groundAt = (x, z, fromY) => p.groundAt(x, z, fromY);
+    view.mover = (at, d) => p.moveKin(at, d);
+    this.shadows = new V.ContactShadows();
+    st.world.add(this.shadows.mesh);
     this.halfW = 0;
     // The ball becomes a rubber rigid body; the stage hands its motion to us.
     const bp = st.ball.position;
@@ -442,13 +454,18 @@ export class World {
     this.halfW = hw;
 
     if (this.carrying) {
-      const h = this.kinHead(0.42);
+      // Held in the mouth, not hovering by the head.
+      const h = view.mouthWorld();
       this.carrying.moveTo({ x: h.x, y: h.y, z: h.z });
     }
     if (this.physics) {
       const kp = view.pos;
-      this.physics.setKin(home && view.visible ? { x: kp.x, y: view.height, z: kp.z } : null);
+      // When it walked this frame the character controller already placed the capsule (and
+      // shoved toys); otherwise follow the animation (hops, spins) or park it (away).
+      if (!(view.walking && home && view.visible)) this.physics.setKin(home && view.visible ? { x: kp.x, y: view.groundY + view.height, z: kp.z } : null);
+      for (const id of this.physics.kinBumps) this.emit({ type: 'touched', id, by: 'kin' });
       this.physics.step(dt);
+      if (home && view.visible) this.checkHit(now);
     }
     if (this.carrying && !view.busy) {
       this.carrying.hold(false);
@@ -463,23 +480,68 @@ export class World {
     if (now - this.lastSave > SAVE_MS) this.save();
   }
 
+  /**
+   * A thrown toy that reaches the KIN fast and heading at it makes it flinch: a stagger away, a
+   * squash, ears, and a look at what hit it. Its own kicks move toys AWAY, so they don't count.
+   */
+  private checkHit(now: number) {
+    const p = this.physics;
+    if (!p || now - this.hitAt < 900) return;
+    const v = this.d.view;
+    const s = v.genome.size;
+    const c = { x: v.pos.x, y: v.groundY + 0.45 * s, z: v.pos.z };
+    for (const id of p.bodiesNear(c, 0.5 * s)) {
+      const e = this.entities.get(id);
+      if (!e?.body || e.held || e.body === this.carrying) continue;
+      const bp = e.body.pos();
+      const bv = e.body.vel();
+      const speed = Math.hypot(bv.x, bv.y, bv.z);
+      const toward = (c.x - bp.x) * bv.x + (c.y - bp.y) * bv.y + (c.z - bp.z) * bv.z;
+      if (speed > 1.3 && toward > 0) {
+        this.hitAt = now;
+        v.bumped(new THREE.Vector3(bp.x, bp.y, bp.z), Math.min(1, (speed * e.body.mass()) / 0.01));
+        this.emit({ type: 'touched', id, by: 'kin' });
+        break;
+      }
+    }
+  }
+
   private syncBodies() {
+    const sh = this.shadows;
+    sh?.begin();
+    const tmp = new THREE.Vector3();
+    const qq = new THREE.Quaternion();
     for (const e of this.entities.values()) {
       if (!e.body) continue;
       const p = e.body.pos();
       const q = e.body.rot();
+      // Every physical thing casts a contact shadow on whatever is under it.
+      if (sh && this.physics) {
+        const under = this.physics.raycastDown({ x: p.x, y: p.y, z: p.z }, 3);
+        if (under) sh.add(p.x, under.y, p.z, Math.max(0.04, e.body.halfH * 1.05), p.y - e.body.halfH - under.y);
+      }
       if (e.kind === 'jelly') {
         e.obj.position.set(p.x, p.y, p.z);
         continue; // the skin shows the squish; the core's spin would smear the highlight
       }
-      e.obj.position.set(p.x, e.kind === 'block' || e.kind === 'ball' ? p.y : p.y - (e.kind === 'berry' ? 0 : 0.035), p.z);
-      e.obj.quaternion.set(q[0], q[1], q[2], q[3]);
+      qq.set(q[0], q[1], q[2], q[3]);
+      if (e.kind === 'block' || e.kind === 'ball' || e.kind === 'berry') {
+        // Views centred on their body.
+        e.obj.position.set(p.x, p.y, p.z);
+      } else {
+        // Views whose origin sits on the ground: put that origin at the body's (rotated) bottom,
+        // so a resting find touches the surface exactly and a tumbling one turns about its centre.
+        tmp.set(0, -e.body.halfH, 0).applyQuaternion(qq);
+        e.obj.position.set(p.x + tmp.x, p.y + tmp.y, p.z + tmp.z);
+      }
+      e.obj.quaternion.copy(qq);
       if (e.kind === 'ball' && e.data.wobble) {
         const w = e.data.wobble as number;
         e.obj.scale.set(1 + w * 0.12, 1 - w * 0.18, 1 + w * 0.12);
         e.data.wobble = Math.max(0, w - 0.06);
       }
     }
+    sh?.end();
   }
 
   private matterFrame(dt: number, t: number) {
@@ -862,29 +924,17 @@ export class World {
   /** A hop-walk toward a moving target; ends when close, lost or after a timeout. */
   private chase(target: () => THREE.Vector3 | null, speed: number, stop: number, maxMs = 6000): Task {
     const v = this.d.view;
-    let phase = 0;
+    // Walks like any other walk: planted feet from the gait, and through the physics character
+    // controller (it goes around the mushroom and shoves what's in the way instead of ghosting).
     const task: Task = {
       dur: maxMs,
       run: (_k: number, dt: number) => {
         const t = target();
         if (!t) return void (task.dur = 1);
-        const dx = t.x - v.pos.x, dz = t.z - v.pos.z;
-        const dist = Math.hypot(dx, dz);
-        if (dist < stop) {
-          v.height = 0;
-          task.dur = 1;
-          return;
-        }
-        const step = Math.min(dist - stop * 0.9, speed * dt);
-        v.pos.x += (dx / dist) * step;
-        v.pos.z = Math.max(GROUND_Z[0], Math.min(GROUND_Z[1], v.pos.z + (dz / dist) * step));
-        const want = Math.atan2(dx, dz);
-        v.yaw += Math.atan2(Math.sin(want - v.yaw), Math.cos(want - v.yaw)) * Math.min(1, dt * 10);
-        const prev = phase;
-        phase += dt * (3.2 + speed * 1.5);
-        v.height = Math.abs(Math.sin(phase * Math.PI)) * 0.08;
-        if (Math.floor(prev) !== Math.floor(phase)) v.squashImpulse(-0.12);
-        v.look = t.clone().setY(0.3);
+        const goal = t.clone();
+        goal.z = Math.max(GROUND_Z[0], Math.min(GROUND_Z[1], goal.z));
+        if (v.walkToward(goal, speed, dt, stop)) task.dur = 1;
+        v.look = t.clone().setY(v.groundY + 0.3);
       },
       exit: () => (v.height = 0),
     } as Task;
@@ -937,7 +987,8 @@ export class World {
     v.script([
       { dur: 250, enter: () => ((v.look = pos().setY(0.3)), (v.mood = 'surprised'), v.earFlick(1.6)) },
       settle,
-      this.chase(pos, 2.4, 0.22),
+      // Stop where the ball sits just under the chin (body-to-ball contact is ~0.44 apart).
+      this.chase(pos, 2.4, 0.47),
       ...(o.success || before > 0.15
         ? ([
             { dur: 200, enter: pickUp },
@@ -957,12 +1008,22 @@ export class World {
   /** Eat: chomp chomp, a happy wiggle. */
   eat(ripeness: number, at?: THREE.Vector3, then?: () => void) {
     const v = this.d.view;
-    const go = at ? [this.chase(() => at, 1.4, 0.2)] : [];
+    // Up to the berry (contact ~0.38 from its centre); the reach then brings the mouth down to it.
+    const go = at ? [this.chase(() => at, 1.4, 0.4)] : [];
     v.script([
       ...go,
-      { dur: 220, enter: () => ((v.mood = 'surprised'), (v.look = (at ?? this.kinHead(0.3)).clone().setY(0.2))) },
+      // Mouth to the food: the head tips down and the body leans until it's at the berry.
+      {
+        dur: 320,
+        enter: () => {
+          v.mood = 'surprised';
+          const food = (at ?? this.kinHead(0.3)).clone();
+          food.y = v.groundY + 0.06;
+          v.reach(food);
+        },
+      },
       ...[0, 1, 2].map(() => ({ dur: 180, enter: () => (v.squashImpulse(-0.35), this.d.sfx?.thump?.()) })),
-      { dur: 900, enter: () => ((v.mood = 'happy'), this.emote('heart'), this.say('nom'), then?.()) },
+      { dur: 900, enter: () => (v.reach(null), (v.mood = 'happy'), this.emote('heart'), this.say('nom'), then?.()) },
     ] as Task[]);
     this.apply(care.feed(this.care, this.now(), ripeness));
     this.emit({ type: 'eaten', id: 'berry', ripeness });
@@ -1258,7 +1319,14 @@ export class World {
     const e: Entity = { id: eid, kind: as, obj: v.group, r: 0.12, grab: as === 'find' ? 'collect' : 'throw', item: id, data: { glint: as === 'find' ? v.glint : undefined } };
     if (as === 'placed') v.glint.visible = false;
     if (this.physics && def.kind !== 'feather' && def.kind !== 'leaf') {
-      const shape = def.kind === 'crystal' ? { box: [0.04, 0.07, 0.04] as [number, number, number] } : { ball: def.kind === 'seed' ? 0.03 : 0.05 };
+      // Colliders match what you see: a flat pebble or shell rests flat and slides (it doesn't roll
+      // like a marble); round things (seed, acorn) roll; the crystal stands on its point-ish box.
+      const shape: Shape =
+        def.kind === 'crystal' ? { box: [0.04, 0.08, 0.04] }
+          : def.kind === 'pebble' ? { cylinder: [0.035, 0.055] }
+            : def.kind === 'shell' ? { cylinder: [0.035, 0.05] }
+              : def.kind === 'acorn' ? { ball: 0.045 }
+                : { ball: 0.03 };
       e.body = this.physics.add({ id: eid, shape, material: def.kind === 'shell' ? 'shell' : 'stone', pos: { x: at.x, y: at.y + 0.05, z: at.z } });
       e.body.impulse({ x: (this.rand() - 0.5) * 0.004, y: 0.01, z: 0.003 });
     }
