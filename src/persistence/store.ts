@@ -46,9 +46,11 @@ export interface Settings {
   debug: boolean;
   /** iOS: show the KIN as a Live Activity on the Lock Screen and in the Dynamic Island. */
   liveActivity: boolean;
+  /** Speech as subtitles along the bottom instead of animated bubbles (accessibility). */
+  subtitles: boolean;
 }
 
-const DEFAULT_SETTINGS: Settings = { sound: true, reducedMotion: false, visits: 'ask', preciseSky: false, debug: false, liveActivity: true };
+const DEFAULT_SETTINGS: Settings = { sound: true, reducedMotion: false, visits: 'ask', preciseSky: false, debug: false, liveActivity: true, subtitles: false };
 
 export class Store {
   constructor(private kv: KV, readonly slot: string) {}

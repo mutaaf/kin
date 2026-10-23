@@ -122,3 +122,9 @@
 @media (prefers-reduced-motion: reduce) {
   .sp-c, .sp-w { animation: none !important; opacity: 1 !important; }
 }
+
+/* The tail layer is decoration over the whole screen: it must never take a tap (the HUD gives its
+   direct children pointer-events: auto). The subtitles bar exists only while it has lines. */
+#hud > .sp-tails { pointer-events: none !important; }
+#hud > .sp-subs:empty { display: none; }
+#hud > .sp-subs { pointer-events: none; }

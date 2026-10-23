@@ -23,6 +23,9 @@ import { Hud } from './ui/hud';
 import { attachWorld } from './world/attach';
 import { ArController } from './ar';
 import { toPhysicsEnv } from './ar/physicsEnv';
+import { expression, experience, loadPersona, personaCard, savePersona, settle, type Experience } from './core/persona';
+import { SpeechLayer } from './ui/speech';
+import { FeedSystem, snackLine } from './world/feed';
 import * as careModel from './core/care';
 import { captureRegion, live, liveStateFrom, needsFromDrives } from './platform/live';
 import { initNative, isNative, setHaptics, tap } from './platform/native';
@@ -101,6 +104,34 @@ export async function startApp(slot: string) {
         reducedMotion: () => settings.reducedMotion,
       });
   addEventListener('pagehide', () => world?.save());
+
+  // Personality that grows (src/core/persona): a blend over archetypes that drifts with what the
+  // KIN lives through. Feeding, play, finds and visits feed it; habits settle once a minute.
+  let persona = loadPersona(kv, slot, kin.seed, kin.traits, Date.now());
+  const grow = (ev: Experience) => {
+    persona = experience(persona, ev, Date.now());
+    savePersona(kv, slot, persona);
+  };
+  world?.world.listeners.add((e) => {
+    if (e.type === 'thrown') grow({ k: 'play', kind: 'throw' });
+    else if (e.type === 'found') grow({ k: 'found' });
+  });
+  // Cinematic speech: bubbles anchored to each creature's head, revealed with its babble voice.
+  const speech = new SpeechLayer(document.getElementById('hud')!, {
+    reducedMotion: () => settings.reducedMotion,
+    subtitles: () => settings.subtitles,
+    onVoice: (who, k) => (who === 'me' ? view : guests.get(who)?.view)?.say(k as Parameters<KinView['say']>[0]),
+  });
+  speech.speaker('me', () => (view.visible ? view.screenHit() : null));
+  const feed = world
+    ? new FeedSystem(world.world, stage, kv, slot, kin.seed, {
+        onEaten: (sn) => {
+          grow({ k: 'fed', snack: sn.id, deltas: sn.deltas, label: sn.name });
+          const ex = expression(persona);
+          void speech.say({ who: 'me', text: snackLine(sn, ex.dominant), style: ex.speech, title: ex.title, name: kin.name, hue: ex.hue });
+        },
+      })
+    : null;
 
   // AR (src/ar): the real room through the camera is KIN's world on capable phones (Pokémon GO
   // AR+ style), chosen from a capability ladder and live device conditions; the habitat elsewhere.
@@ -199,6 +230,10 @@ export async function startApp(slot: string) {
     const c = ctx();
     kin = { ...kin, drives: drift(kin.drives, current.action, 0.25, c) };
     pushLive();
+    if (tick % 240 === 0) {
+      persona = settle(persona, Date.now(), { hour: new Date().getHours(), weather: weatherWord(sky), active: current.action !== 'sleep' });
+      savePersona(kv, slot, persona);
+    }
     if (kin.placement.kind === 'away' || !kin.hatched) return;
     const key = `${c.peerEdge}|${c.guest?.id}`;
     if (view.busy) return;
@@ -322,6 +357,7 @@ export async function startApp(slot: string) {
             weather: m.weather,
           });
           kin = meet(kin, { id: m.hostId, name: m.hostName, hue: m.hostHue }, Date.now(), m.hostReaction === 'aloof' ? 0.05 : 0.2);
+          grow({ k: 'visit', friendName: m.hostName });
           kin = { ...kin, drives: { ...kin.drives, social: Math.max(0, kin.drives.social - 0.5) } };
           setTimeout(() => {
             sfx.chime();
@@ -383,6 +419,7 @@ export async function startApp(slot: string) {
           rng(hash('vreact:' + fx.visitId)),
         );
         guests.set(fx.visitId, { view: gv, visitor: fx.visitor, reaction: fx.reaction, visitorReaction, owner: ownerPeer, hosting: false });
+        speech.speaker(fx.visitId, () => (gv.visible ? gv.screenHit() : null));
         // Beat 4/5: my KIN notices the seam before the visitor appears.
         if (kin.placement.kind === 'home' && !view.busy) {
           view.script([{ dur: 900, enter: () => ((view.look = toWorldEdge(fx.edge)), (view.mood = 'surprised'), view.earFlick(1.4)) }]);
@@ -413,6 +450,7 @@ export async function startApp(slot: string) {
           weather: weatherWord(sky),
         });
         kin = meet(kin, { id: g.visitor.kinId, name: g.visitor.name, hue: g.visitor.hue }, Date.now(), g.reaction === 'aloof' ? 0.05 : 0.2);
+        grow({ k: 'hosted', friendName: g.visitor.name });
         save();
         hud.guestBar([...guests.entries()].filter(([, x]) => x.hosting).map(([id, x]) => ({ id, name: x.visitor.name, hue: x.visitor.hue })), (id) =>
           session.applyHost(session.host.sendHome(id)),
@@ -434,6 +472,7 @@ export async function startApp(slot: string) {
         const finish = () => {
           g.view.dispose();
           guests.delete(fx.visitId);
+          speech.forget(fx.visitId);
           refreshGuestBar();
         };
         g.view.script([
@@ -450,6 +489,7 @@ export async function startApp(slot: string) {
         g.view.script([g.view.fade(true, 500, () => {
           g.view.dispose();
           guests.delete(fx.visitId);
+          speech.forget(fx.visitId);
           refreshGuestBar();
         })]);
         hud.prompt(null);
@@ -803,6 +843,7 @@ export async function startApp(slot: string) {
       doing: current.action,
       recent: kin.memories.filter((m) => m.kind !== 'thought').slice(0, 4).map((m) => ({ kind: m.kind, other: m.other?.name, reaction: m.reaction })),
       friends: Object.values(kin.friends).sort((a, b) => b.meets - a.meets).slice(0, 3).map((f) => ({ name: f.name, meets: f.meets })),
+      persona: personaCard(persona),
     };
   };
   const askThought = async () => {
@@ -817,10 +858,8 @@ export async function startApp(slot: string) {
         onSettings: () => void import('./ai/settings').then((m) => m.openAISettings()),
       });
       const src = r.source === 'model' ? `thought with ${r.model?.replace(/^@cf\/[^/]+\//, '')}` : 'thought on this device';
-      hud.thought(r.thought, src, () => {
-        const h = view.screenHit();
-        return { x: h.x - 20, y: h.y - h.r * 0.9 };
-      });
+      const ex = expression(persona);
+      void speech.say({ who: 'me', text: r.thought, kind: 'thought', style: ex.speech, mood: r.mood, title: `${ex.title} · ${src}`, name: kin.name, hue: ex.hue });
       sfx.chirp(1.15);
       kin = remember(kin, { at: Date.now(), kind: 'thought', note: `${kin.name} thought: “${r.thought}”`, weather: weatherWord(sky) });
       lastLine = r.thought;
@@ -858,6 +897,7 @@ export async function startApp(slot: string) {
     view.update(dt, now, t);
     for (const g of guests.values()) g.view.update(dt, now, t);
     world?.update(dt, now, t);
+    feed?.update(now);
     stage.render();
     // The Live Activity's portrait of THIS creature, taken right after render (buffers aren't kept).
     if (wantSnapshot && live.available && view.visible && t > 3) {
