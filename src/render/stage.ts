@@ -12,6 +12,19 @@ import type { Pt } from './choreo';
 const TILT = THREE.MathUtils.degToRad(31);
 export const GROUND_Z: [number, number] = [-1.25, 1.35];
 
+/** Fixed scenery geometry, shared with the physics world (colliders) and snow caps. */
+export const DECOR = {
+  mushroom: { x: -1.6, z: -0.85, stalkR: 0.15, stalkH: 0.55, capY: 0.52, capR: 0.62, capH: 0.62 * 0.55 },
+  nest: { x: 1.55, z: -0.75, ringR: 0.36, tubeR: 0.11 },
+  plant: { x: -0.55, z: -1.05 },
+} as const;
+
+/** Something that owns the ball's motion (src/world physics). Until one is set, the roller runs. */
+export interface ToyDriver {
+  position(): THREE.Vector3;
+  kick(dir: THREE.Vector3, strength: number): void;
+}
+
 export interface Palette {
   top: string;
   mid: string;
@@ -107,6 +120,16 @@ export class Stage {
   sky: Sky | null = null;
   readonly ball: THREE.Mesh;
   readonly ballVel = new THREE.Vector3();
+  /** When set (physics loaded), the ball's motion is real rigid-body physics. */
+  toyDriver: ToyDriver | null = null;
+  /** True once real firefly actors fly at night: the night motes stand down. */
+  fireflies = false;
+  /** 0..1 snow lying on the ground (from the world's snow actor), independent of falling snow. */
+  private snowCover = 0;
+  /** The plant group, so the world can grow it, droop it in drought and hang berries on it. */
+  plant!: THREE.Group;
+  /** The mushroom and nest, for snow caps. */
+  mushroom!: THREE.Group;
   /** Anchor points the brain's actions use (world coords on the ground). */
   readonly anchors = {
     nest: new THREE.Vector3(1.55, 0, -0.75),
@@ -258,6 +281,8 @@ export class Stage {
       plant.add(stem, bulb);
     }
     plant.position.copy(this.anchors.plant);
+    this.plant = plant;
+    this.mushroom = mush;
     this.plantLight.position.set(this.anchors.plant.x, 0.6, this.anchors.plant.z + 0.2);
     this.world.add(plant, this.plantLight);
 
@@ -367,9 +392,7 @@ export class Stage {
     this.skyEl.style.background = this.skyGradient();
     this.starsEl.style.opacity = String(Math.max(0, p.night - 0.35) * (1 - s.cloud * 0.9));
     (this.scene.fog as THREE.Fog).color.set(p.horizon);
-    this.groundMat.color.copy(p.ground);
-    this.mossMat.color.copy(p.ground).offsetHSL(0.01, 0.02, 0.05);
-    this.grassMat.color.copy(p.ground).offsetHSL(0.0, 0.08, 0.04 + p.night * 0.06);
+    this.tintGround();
     this.hemi.color.copy(p.hemiSky);
     this.hemi.groundColor.copy(p.hemiGround);
     this.hemi.intensity = p.hemiI;
@@ -386,6 +409,28 @@ export class Stage {
     const dir = THREE.MathUtils.degToRad(s.windDir + 180); // blows toward
     this.grassU.uWind.value.set(Math.sin(dir) * wind * 0.5, -Math.cos(dir) * wind * 0.2);
     this.layoutSky();
+  }
+
+  /** Snow lying on the garden: the meadow whitens and the grass hides under it. */
+  setSnowCover(depth: number) {
+    const d = Math.max(0, Math.min(1, depth));
+    if (Math.abs(d - this.snowCover) < 0.01) return;
+    this.snowCover = d;
+    this.tintGround();
+  }
+
+  private tintGround() {
+    const p = this.pal;
+    if (!p) return;
+    const snowCol = new THREE.Color(p.night > 0.6 ? '#4A5574' : '#EEF2F7');
+    const k = Math.min(1, this.snowCover * 1.6);
+    this.groundMat.color.copy(p.ground).lerp(snowCol, k);
+    this.mossMat.color.copy(p.ground).offsetHSL(0.01, 0.02, 0.05).lerp(snowCol, k);
+    this.grassMat.color.copy(p.ground).offsetHSL(0.0, 0.08, 0.04 + p.night * 0.06).lerp(snowCol, k * 0.75);
+  }
+
+  get palette(): Palette | null {
+    return this.pal;
   }
 
   get glow() {
@@ -484,7 +529,7 @@ export class Stage {
     const night = (this.pal?.night ?? 0) > 0.6;
     (this.motes.material as THREE.PointsMaterial).color.set(night ? '#c8ffe9' : '#fff3d6');
     (this.motes.material as THREE.PointsMaterial).opacity = night ? 0.4 + 0.4 * Math.sin(t * 2) ** 2 : 0.5;
-    this.motes.visible = !wet;
+    this.motes.visible = !wet && !(night && this.fireflies);
     for (let i = 0; i < m.count; i++) {
       let x = m.getX(i) + (wx * 0.9 + Math.sin(t * 0.5 + i * 1.7) * 0.12) * dt;
       const y = 0.3 + ((i * 0.37) % 2.4) + Math.sin(t * 0.8 + i) * 0.2;
@@ -494,7 +539,8 @@ export class Stage {
     }
     m.needsUpdate = true;
 
-    // Ball: rolls with friction, nudged by the wind.
+    // Ball: rolls with friction, nudged by the wind (until physics drives it).
+    if (this.toyDriver) return;
     const b = this.ball;
     this.ballVel.x += wx * 0.04 * dt;
     b.position.addScaledVector(this.ballVel, dt);
@@ -529,11 +575,17 @@ export class Stage {
   // asks where the ball is and kicks it; whatever simulates the ball (this simple roller today,
   // rigid-body physics in src/world) lives behind these two calls.
   ballPosition(): THREE.Vector3 {
-    return this.ball.position.clone().setY(0);
+    return (this.toyDriver ? this.toyDriver.position() : this.ball.position.clone()).setY(0);
   }
 
   kickBall(dir: THREE.Vector3, strength: number) {
+    if (this.toyDriver) return this.toyDriver.kick(dir, strength);
     this.ballVel.addScaledVector(dir.clone().setY(0).normalize(), strength);
+  }
+
+  /** Half the visible width in world units (where the garden walls go). */
+  get halfWidth() {
+    return this.w / 2 / Math.max(1, this.px);
   }
 
   render() {
