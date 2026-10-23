@@ -129,7 +129,7 @@ export class KinView {
         this.mood = 'content';
         break;
       case 'play':
-        this.target = this.stage.ball.position.clone().setY(0);
+        this.target = this.stage.ballPosition();
         this.mood = 'happy';
         break;
       case 'sit':
@@ -398,13 +398,12 @@ export class KinView {
       }
     } else if (this.target) {
       const speed = this.action === 'play' ? 1.6 : this.action === 'sleep' || this.action === 'shelter' ? 0.9 : 0.75;
-      if (this.action === 'play') this.target.copy(this.stage.ball.position).setY(0);
+      if (this.action === 'play') this.target.copy(this.stage.ballPosition());
       if (this.stepToward(this.target, speed, dt)) {
         if (this.action === 'play') {
           // boop the ball
-          const b = this.stage.ball.position;
-          const dir = b.clone().sub(this.pos).setY(0).normalize();
-          this.stage.ballVel.addScaledVector(dir, 1.6 + Math.random());
+          const dir = this.stage.ballPosition().sub(this.pos);
+          this.stage.kickBall(dir, 1.6 + Math.random());
           this.squashImpulse(0.4);
         } else {
           this.target = null;

@@ -525,6 +525,17 @@ export class Stage {
     }
   }
 
+  // ── Toy contract (stable seam between the creature and the world). The creature only ever
+  // asks where the ball is and kicks it; whatever simulates the ball (this simple roller today,
+  // rigid-body physics in src/world) lives behind these two calls.
+  ballPosition(): THREE.Vector3 {
+    return this.ball.position.clone().setY(0);
+  }
+
+  kickBall(dir: THREE.Vector3, strength: number) {
+    this.ballVel.addScaledVector(dir.clone().setY(0).normalize(), strength);
+  }
+
   render() {
     this.renderer.render(this.scene, this.camera);
   }
