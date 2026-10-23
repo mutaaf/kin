@@ -84,3 +84,10 @@ Environment nuances:
 - In editor scripts never use `??` on Unity objects (fake null): `GetComponent<T>() ?? Add…` returns a destroyed-looking object.
 - The FBX's `_LOD0/_LOD1` mesh names make Unity create a `LODGroup` itself; reuse it.
 - Without the App Group registered on Apple's side, signing fails; `unity-ios.sh` retries with `CODE_SIGN_ENTITLEMENTS=` (bundled portrait in the Live Activity).
+
+### On-device status (iPhone 15 Pro Max, 2026-10-23)
+- `frametimes.log` (pull: `xcrun devicectl device copy from --device <udid> --domain-type appDataContainer --domain-identifier com.mutaafaziz.kin --source Documents/frametimes.log --destination .`):
+  first Unity build ran steady at 30 fps (p50 33.3 ms, p95 33.5–33.7 ms, p99 33.6–48 ms; one 2.4–3.4 s
+  start-up hitch while shaders compiled behind the veil). `KinBoot` now targets 60 fps and `KinQuality`
+  walks render scale → fur shells → MSAA to hold it; that build is installed but not yet measured in the foreground.
+- WebGL: 12.46 MB total (data 6.3 MB + wasm 6.0 MB + js), Brotli + decompression fallback, ASTC textures (1024; data maps 512), engine stripping, IL2CPP size.

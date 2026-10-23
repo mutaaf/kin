@@ -20,7 +20,8 @@ public class KinArtImporter : AssetPostprocessor
         mi.animationType = ModelImporterAnimationType.Generic;
         mi.motionNodeName = "root";
         mi.importBlendShapes = true;
-        mi.importBlendShapeNormals = ModelImporterNormals.Import;
+        mi.importBlendShapeNormals = ModelImporterNormals.None; // shape normals ~double the mesh; the face shapes are small
+        mi.meshCompression = ModelImporterMeshCompression.Medium;
         mi.materialImportMode = ModelImporterMaterialImportMode.None; // materials are built in code
         mi.globalScale = 1f;
         mi.useFileScale = true;

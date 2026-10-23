@@ -22,9 +22,13 @@ namespace Kin.App
             File.AppendAllText(path, $"--- session {System.DateTime.Now:O} {SystemInfo.deviceModel} {Screen.width}x{Screen.height} target={Application.targetFrameRate}\n");
         }
 
+        KinQuality quality;
+
         void Update()
         {
-            ms[count % N] = Time.unscaledDeltaTime * 1000f;
+            float dt = Time.unscaledDeltaTime;
+            if (dt > 0.25f) return; // backgrounded / locked: not a frame the player saw
+            ms[count % N] = dt * 1000f;
             count++;
             since += Time.unscaledDeltaTime;
             if (since < 20f) return;
@@ -33,10 +37,16 @@ namespace Kin.App
             System.Array.Copy(ms, sorted, n);
             System.Array.Sort(sorted, 0, n);
             int stalls = 0;
-            for (int i = 0; i < n; i++) if (sorted[i] > 33.4f) stalls++;
-            string line = $"{Time.realtimeSinceStartup:0}s n={n} p50={sorted[n / 2]:0.0} p95={sorted[(int)(n * 0.95f)]:0.0} p99={sorted[(int)(n * 0.99f)]:0.0} max={sorted[n - 1]:0.0} stalls>33ms={stalls}\n";
+            for (int i = 0; i < n; i++) if (sorted[i] > 34f) stalls++;
+            string line = $"{Time.realtimeSinceStartup:0}s n={n} p50={sorted[n / 2]:0.0} p95={sorted[(int)(n * 0.95f)]:0.0} p99={sorted[(int)(n * 0.99f)]:0.0} max={sorted[n - 1]:0.0} stalls>34ms={stalls} target={Application.targetFrameRate} {Quality()}\n";
             File.AppendAllText(path, line);
             Debug.Log("KIN_FRAMES " + line);
+        }
+
+        string Quality()
+        {
+            if (!quality) quality = FindFirstObjectByType<KinQuality>();
+            return quality ? quality.Describe() : "";
         }
     }
 }

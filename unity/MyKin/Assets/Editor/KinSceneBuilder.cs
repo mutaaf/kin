@@ -80,6 +80,7 @@ public static class KinSceneBuilder
         var boot = new GameObject("Boot");
         boot.AddComponent<KinBoot>();
         boot.AddComponent<KinFrameLog>();
+        boot.AddComponent<KinQuality>().creature = kin;
 
         // AR rig (inactive until the session reports support).
         var ar = BuildAr(sun, life, habitat, cam);

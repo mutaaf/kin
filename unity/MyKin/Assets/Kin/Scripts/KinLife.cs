@@ -53,9 +53,46 @@ namespace Kin.App
             foreach (var t in head) if (t.name == "head") zzz.anchor = t;
         }
 
+        float nextLive;
+
+        /// <summary>Keep the Lock Screen / Dynamic Island Live Activity in step (iOS; no-op elsewhere).
+        /// Native throttles; we send at most every 30 s, plus right after care.</summary>
+        void PushLive(bool now = false)
+        {
+            if (!now && Time.time < nextLive) return;
+            nextLive = Time.time + 30;
+            var a = current?.Action ?? KinAction.Idle;
+            var d = kin.Drives;
+            var g = Genomes.Make(kin.Seed);
+            KINLive.Update(new KINLive.State
+            {
+                name = kin.Name, seed = (int)kin.Seed, hue = g.Hue, accentHue = g.AccentHue,
+                mood = a == KinAction.Sleep ? "sleepy" : a == KinAction.Play ? "happy" : petting > 0.2f ? "cozy" : "content",
+                doing = a switch { KinAction.Sleep => "asleep", KinAction.Play => "playing", KinAction.Wander => "exploring", KinAction.Sit => "sitting pretty", _ => "at home" },
+                mode = a == KinAction.Sleep ? "asleep" : "home",
+                hunger = d.Comfort, play = d.Curious < 0.5 ? 0.9 : 1 - d.Curious * 0.5, rest = d.Energy, clean = 0.85, affection = 1 - d.Social * 0.6,
+                line = a == KinAction.Sleep ? "Dreaming of the meadow." : "Come say hi.",
+            });
+        }
+
+        void OnApplicationPause(bool paused)
+        {
+            if (paused) { PushLive(true); return; }
+            // Care given from the Lock Screen while we were away: let the KIN feel it.
+            foreach (var c in KINLive.PendingCare())
+            {
+                petting = 1;
+                creature.Express(Expression.Happy, 2f);
+                creature.Play(c.verb == "feed" ? "Eat" : "Happy");
+            }
+        }
+
+        void Start() => KINLive.Activate();
+
         void Update()
         {
             HandleTouch();
+            PushLive();
             if (Time.time >= nextThink)
             {
                 nextThink = Time.time + 0.25f;
