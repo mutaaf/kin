@@ -7,7 +7,7 @@ is regenerated.
 | Stage | Script | What it does |
 |---|---|---|
 | 1 | `stage_mesh.py` | Weld glTF seam splits; centre on the **symmetry plane** (head + ears, not the bbox: the tail skews it); scale to **0.28 m** at the ear tips, feet at 0, forward −Y; LOD0 **30,000** tris, LOD1 **10,000** (symmetric decimate); crystal mask + ORM from the base colour; tangent-space normal map baked from the 119k source. |
-| 2 | `stage_face.py` | Locate the painted eyes (dark/teal, front of head), symmetrise, paint them out of the base colour and crystal mask; glossy eyeballs with a generated iris/pupil texture; eyelid mesh + blendshapes; facial blendshapes on both LODs. |
+| 2 | `stage_face.py` | Locate the painted eyes (dark/teal, front of head) and symmetrise. **Iris art from the concept:** crop each painted eye from `art/source/front.png` and front-project it onto the eyeball (plus a catchlight-free copy). **Seated eyes:** wide spherical caps only 0.25 r proud of the face; the head is carved into a socket with a rounded lid lip; per pixel, the old eye becomes fur, a soft dark lash line rings the socket (thicker on top) with corner AO. **Lids:** furred shells flush with the lip, lash-dark edge band, curved edges. Facial blendshapes on both LODs. |
 | 3 | `stage_rig.py` | 38-bone quadruped rig from mesh landmarks (tail = vertices with no mirror twin; legs = four low clusters; spine/head/ears from regions and the eyes); automatic weights, ≤4 influences, normalised; eyes and lids ride `head`. |
 | 4 | `stage_anim.py` | 22 skeletal clips keyed from pose functions (phase-delayed overlap on ears/tail, anticipation, eased arcs, loops whole-cycle periodic so last frame = first) + a blink recipe; writes `build/clips.json`. |
 | 5 | `stage_export.py` | FBX for Unity, GLB for three.js, PNG textures, `manifest.json`; `verify_export.py` re-imports both. |
@@ -17,8 +17,8 @@ is regenerated.
 - **Model:** `kin_hero.fbx`, Generic rig, root node `root` for root motion (locomotion clips move it forward). Scale factor 1 (1 unit = 1 m). It faces +Z. Takes are named `Armature|<Clip>`; ignore the empty `Key…|<Clip>` takes (shape-key carriers).
 - **Materials:**
   - **Body:** use the `KIN_Body` textures. Base colour, normal and ORM (R = AO, G = roughness, B = metallic) map directly; `kin_crystal_mask` (1 = crystal) drives smoothness, emission (mint) and translucency, and **fur-shell density = 1 − mask**.
-  - **Eyes:** `kin_eye.png` with clearcoat. Dilate the pupil by scaling UVs about the centre.
-  - **Lids:** reuse the body material.
+  - **Eyes:** `KIN_Eye_L/R` use `kin_eye_L/R.png` (concept art, painted catchlights) with a smooth clear coat. For live highlights use `kin_eye_*_nocatch.png` and add your own glossy layer. UV (0.5, 0.5) is the pupil; dilate by scaling UVs about it. Each eye's pivot is its eyeball centre, so rotating it makes the eye look around.
+  - **Lids:** reuse the body material (the lid body maps the fur just above each eye; the edge maps the lash colour).
 - **Blendshapes:**
   - `KIN_Lids`: Blink, HalfLid, HappySquint, Wide, Worried, Sleepy.
   - `KIN_LOD0/1`: Mouth_Smile, Mouth_Open, Mouth_O, Cheeks_Puff, Ears_Relax.
@@ -46,10 +46,11 @@ Rolls give every bone local X = side axis. +pitch lifts the spine front, nods th
 
 - **Fur:** it's painted into the texture. The softness has to come from real-time fur shells in the engine, driven by the crystal mask.
 - **Crystal mask:** it's per-pixel, from colour. The faint mint fur gradient on the tail and ears gets a little gloss.
-- **Eyelids:**
-  - Closed lids are smooth domes with a single fur colour, not textured fur.
-  - The happy squint is a slit, not a true "^ ^" arc.
-  - A faint teal remnant of the painted eye shows under one eye.
+- **Eyes and lids** (compare `renders/td/face_vs_concept.png`):
+  - The iris is the concept's painted eye, so its reflections are baked for a front view. From a strong side angle the projection flattens, and the catchlights don't move with the light (use the `_nocatch` textures plus engine highlights).
+  - The catchlight-free textures keep faint ghosts of the highlights.
+  - Closed lids are furred but smoother than the painted face, and a faint seam shows where the lid meets the socket lip, most visible in 3/4.
+  - The concept's thick upper lashes, cheek blush and soft fur halo are not modelled; the lash is painted. Fur shells and a blush decal would close most of the remaining gap.
 - **Animation:** keyed procedurally, not hand-polished.
   - The walk is readable but subtle.
   - There's no foot IK and no contact locking (the realism track in the engine should plant feet).

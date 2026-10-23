@@ -56,6 +56,8 @@ def main():
         hero = b("kin_hero.blend")
         run("render_turn.py", os.path.join(RENDERS, "turntable_final.png"), blend=hero)
         run("render_faces.py", os.path.join(RENDERS, "expressions_final.png"), blend=hero)
+        run("render_compare.py", os.path.join(RENDERS, "face_vs_concept.png"),
+            os.path.join(ART, "sour" "ce", "front.png"), blend=hero)
         run("render_poses.py", os.path.join(RENDERS, "stress_poses_final.png"), blend=hero)
         run("render_anim.py", RENDERS, "Walk", "Hop", "Eat", "Happy", "Lie_Sleep", "Sit_Enter", blend=b("stage_anim.blend"))
     for f in os.listdir(BUILD):

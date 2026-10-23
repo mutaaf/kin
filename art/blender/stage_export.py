@@ -35,7 +35,9 @@ for tr in arm.animation_data.nla_tracks:
 
 # Textures out (PNG) and point the materials at the files, so the FBX references them.
 TEX = {"kin_basecolor": "kin_basecolor.png", "kin_normal": "kin_normal.png", "kin_orm": "kin_orm.png",
-       "kin_crystal_mask": "kin_crystal_mask.png", "kin_eye": "kin_eye.png"}
+       "kin_crystal_mask": "kin_crystal_mask.png",
+       "kin_eye_L": "kin_eye_L.png", "kin_eye_R": "kin_eye_R.png",
+       "kin_eye_L_nocatch": "kin_eye_L_nocatch.png", "kin_eye_R_nocatch": "kin_eye_R_nocatch.png"}
 for name, fn in TEX.items():
     img = bpy.data.images.get(name)
     if not img:
@@ -98,8 +100,16 @@ manifest = {
                      "orm": "textures/kin_orm.png (R=AO, G=roughness, B=metallic)",
                      "crystalMask": "textures/kin_crystal_mask.png (1 = crystal: glossy, translucent, emissive mint)",
                      "furShells": "drive density/length from (1 - crystalMask)"},
-        "KIN_Eye": {"baseColor": "textures/kin_eye.png", "notes": "front pole = pupil; dilate the pupil by scaling UVs about (0.5,0.5) in the shader"},
-        "KIN_Lid": {"notes": "lids share KIN_Body; their UVs sample fur just above the eye"},
+        "KIN_Eye_L": {"baseColor": "textures/kin_eye_L.png", "baseColorNoCatchlights": "textures/kin_eye_L_nocatch.png"},
+        "KIN_Eye_R": {"baseColor": "textures/kin_eye_R.png", "baseColorNoCatchlights": "textures/kin_eye_R_nocatch.png"},
+        "eyeNotes": ("iris art is cropped from the concept (art/source/front.png) and front-projected: UV (0.5,0.5) = "
+                     "pupil centre; dilate by scaling UVs about it. The default textures keep the painted "
+                     "catchlights; for live glossy highlights use the _nocatch textures plus a smooth clear-coat "
+                     "or a camera-facing catchlight sprite. Each eye's pivot is its eyeball centre (deep in the "
+                     "socket), so rotating KIN_Eye_L/R makes it look around; the caps are sized to stay seated."),
+        "KIN_Lid": {"notes": ("lids share KIN_Body: the lid body maps a fur patch just above each eye, the edge "
+                              "rows a dark lash texel. Upper lid sits flush with the socket lip; blendshapes: "
+                              "Blink, HalfLid, Sleepy, HappySquint (pair with Cheeks_Puff), Wide, Worried")},
     },
     "clips": clips,
     "files": {"fbx": "kin_hero.fbx", "glb": "kin_hero.glb", "textures": sorted(TEX.values())},
