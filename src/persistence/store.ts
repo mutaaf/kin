@@ -44,9 +44,11 @@ export interface Settings {
   /** Precise location for the sky (opt-in). Off = coarse timezone location. */
   preciseSky: boolean;
   debug: boolean;
+  /** iOS: show the KIN as a Live Activity on the Lock Screen and in the Dynamic Island. */
+  liveActivity: boolean;
 }
 
-const DEFAULT_SETTINGS: Settings = { sound: true, reducedMotion: false, visits: 'ask', preciseSky: false, debug: false };
+const DEFAULT_SETTINGS: Settings = { sound: true, reducedMotion: false, visits: 'ask', preciseSky: false, debug: false, liveActivity: true };
 
 export class Store {
   constructor(private kv: KV, readonly slot: string) {}

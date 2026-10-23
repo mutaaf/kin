@@ -25,6 +25,7 @@ interface Bindings {
   think: () => void;
   openAI: () => void;
   aiLabel: () => string;
+  native: boolean;
 }
 
 export class Hud {
@@ -296,6 +297,7 @@ export class Hud {
         ${sw('reducedMotion', 'Reduced motion', 'Fades instead of hops')}
         ${sw('preciseSky', 'Precise sky', 'Use your location (rounded to ~11 km) for weather. Off: your timezone’s city.')}
         ${sw('debug', 'Why did it do that?', 'Show the brain’s reasoning')}
+        ${this.b.native ? sw('liveActivity', 'Lock Screen', 'Show your KIN as a Live Activity, with Feed, Play and Pet buttons') : ''}
         <div class="label">Thoughts</div>
         <div class="toggle"><div>Your own AI<small>${esc(this.b.aiLabel())}. Paste a Claude, OpenAI, xAI or Gemini key in one step.</small></div><button class="btn" data-ai>${'Change'}</button></div>
         <div class="label">This KIN</div>

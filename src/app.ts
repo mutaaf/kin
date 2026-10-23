@@ -21,6 +21,8 @@ import { MultiTransport, RelayTransport, relayUrl } from './transport/relay';
 import { watchStitch } from './stitch/gesture';
 import { Hud } from './ui/hud';
 import { attachWorld } from './world/attach';
+import * as careModel from './core/care';
+import { captureRegion, live, liveStateFrom, needsFromDrives } from './platform/live';
 import { initNative, isNative, setHaptics, tap } from './platform/native';
 import { aiLabel, loadAI } from './ai/config';
 import type { Card } from './ai/schema';
@@ -171,6 +173,7 @@ export async function startApp(slot: string) {
     tick++;
     const c = ctx();
     kin = { ...kin, drives: drift(kin.drives, current.action, 0.25, c) };
+    pushLive();
     if (kin.placement.kind === 'away' || !kin.hatched) return;
     const key = `${c.peerEdge}|${c.guest?.id}`;
     if (view.busy) return;
@@ -588,6 +591,7 @@ export async function startApp(slot: string) {
             session.hello(false);
             hud.rail(true);
             hud.hint('Stroke to pet. Tap Gather to visit a friend.', 4200);
+            setTimeout(() => (wantSnapshot = true), 1500);
           }),
         },
       ]);
@@ -638,15 +642,21 @@ export async function startApp(slot: string) {
       hud.debugVisible(settings.debug);
       if ('preciseSky' in patch) void refreshSky();
       if ('visits' in patch) session.hello(false);
+      if ('liveActivity' in patch) {
+        void live.setEnabled(settings.liveActivity);
+        if (!settings.liveActivity) void live.end();
+      }
     },
     think: () => void askThought(),
     openAI: () => void import('./ai/settings').then((m) => m.openAISettings()),
     aiLabel: () => aiLabel(),
+    native: isNative,
     forgetMemories: () => {
       kin = { ...kin, memories: [], friends: {} };
       save();
     },
     release: () => {
+      void live.end();
       store.wipe();
       location.replace(location.pathname + '?k=' + slot);
     },
@@ -716,6 +726,35 @@ export async function startApp(slot: string) {
     emit('ready');
   }
 
+  // ── Live Activity (iOS 17+): the KIN on the Lock Screen and in the Dynamic Island, with Feed /
+  // Play / Pet / Tuck in buttons that work without opening the app (src/platform/live.ts; a no-op
+  // on the web). Care given there is queued natively and applied here, exactly once.
+  let lastLine: string | null = null;
+  let wantSnapshot = kin.hatched;
+  function pushLive() {
+    if (!live.available || !kin.hatched || embed || !settings.liveActivity) return;
+    const n = world?.world.care.needs;
+    void live.update(liveStateFrom({
+      kin, genome, sky, action: current.action, line: lastLine,
+      needs: n ? { hunger: n.fullness, play: n.fun, rest: n.rest, clean: n.clean, affection: n.affection } : needsFromDrives(kin.drives),
+      away: kin.placement.kind === 'away' ? kin.placement.hostName : null,
+      fahrenheit: /^en-US/.test(navigator.language),
+    }));
+  }
+  const applyLiveCare = async () => {
+    if (!world) return;
+    const w = world.world;
+    for (const c of await live.pendingCare()) {
+      const o = c.verb === 'feed' ? careModel.feed(w.care, c.at) : c.verb === 'play' ? careModel.play(w.care, c.at, 'toy') : c.verb === 'tuck' ? careModel.tuck(w.care, c.at) : careModel.pet(w.care, c.at);
+      w.apply(o);
+    }
+  };
+  if (live.available) {
+    void live.setEnabled(settings.liveActivity);
+    void applyLiveCare();
+    addEventListener('visibilitychange', () => document.visibilityState === 'visible' && void applyLiveCare());
+  }
+
   // ── The AI director: "what is your KIN thinking?" A free edge model by default or the player's
   // own key; the call plays live in the aurora-field theatre (lazy chunk), and the answer is a
   // validated thought plus ONE action from the brain's own safe vocabulary.
@@ -749,6 +788,7 @@ export async function startApp(slot: string) {
       });
       sfx.chirp(1.15);
       kin = remember(kin, { at: Date.now(), kind: 'thought', note: `${kin.name} thought: “${r.thought}”`, weather: weatherWord(sky) });
+      lastLine = r.thought;
       save();
       // The brain performs the chosen action like any of its own choices.
       current = { action: r.act, until: Date.now() + 6000, why: [`the director: ${r.mood}`] };
@@ -784,6 +824,12 @@ export async function startApp(slot: string) {
     for (const g of guests.values()) g.view.update(dt, now, t);
     world?.update(dt, now, t);
     stage.render();
+    // The Live Activity's portrait of THIS creature, taken right after render (buffers aren't kept).
+    if (wantSnapshot && live.available && view.visible && t > 3) {
+      wantSnapshot = false;
+      const h = view.screenHit();
+      void live.setSnapshot(captureRegion(stage.renderer.domElement, h.x, h.y, h.r * 1.15));
+    }
     if (!paused) requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
