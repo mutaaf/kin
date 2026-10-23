@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Runs KIN's engine-free core (the Unity package's Runtime/) on plain .NET, no Unity needed:
+      ~/.dotnet/dotnet test unity/Core.Tests
+    LangVersion is pinned to C# 9, the version Unity 6 compiles with, so anything that passes
+    here also compiles in the editor.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Kin.Core.Tests</RootNamespace>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Packages/com.mutaafaziz.kin.core/Runtime/**/*.cs" Link="Runtime/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="Fixtures/ts-reference.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+</Project>
