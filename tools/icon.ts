@@ -45,7 +45,6 @@ scene.add(key, rim);
 
 const k = buildCreature(makeGenome(seed));
 k.root.rotation.y = -0.25;
-for (const l of k.lids) l.visible = false; // eyes open (KinView normally manages the lids)
 k.head.rotation.set(-0.12, 0.18, 0.06);
 scene.add(k.root);
 
