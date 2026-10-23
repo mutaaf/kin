@@ -7,5 +7,6 @@ import UIKit
 class KINBridgeViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(LiveActivityPlugin())
+        bridge?.registerPluginInstance(ARPlugin()) // KINAR: the real room as KIN's world
     }
 }

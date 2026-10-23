@@ -28,8 +28,12 @@
 	<string>public.app-category.casual-games  </string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>So your KIN can live in your real room: walk on your floor and tables and notice things around it. The camera picture stays on this device and is never saved or sent anywhere.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Only if you turn on Precise sky: your KIN’s weather and sunlight match where you are. Rounded to about 11 km and never stored or shared.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Only when you tap the shutter and choose Save Image: your AR photo of KIN goes into your Photos.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key>

@@ -1,0 +1,60 @@
+/* AR: the page goes transparent so the real room (native camera behind the web view, or the
+   camera-view <video>) shows through; KIN's UI stays graphite glass on top. */
+html.kin-ar, html.kin-ar body, html.kin-ar #app, html.kin-ar #stage { background: transparent !important; }
+html.kin-ar #stage::after { display: none; } /* no vignette over the real room */
+html.kin-ar .top { text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55); }
+
+/* Room mode: a calm graphite "stage" around the miniature of the real room. */
+html.kin-ar.kin-room body { background: radial-gradient(120% 90% at 50% 40%, #1a2030, #0b0d12 75%) !important; }
+
+.ar-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
+html.kin-cameraview #stage canvas { z-index: 1; }
+
+.ar-badge {
+  position: fixed; right: 14px; top: calc(44px + env(safe-area-inset-top, 0px)); z-index: 12;
+  display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 999px;
+  font: 600 11px/1 var(--ui, system-ui); letter-spacing: 0.12em; text-transform: uppercase; color: #f6f6f3;
+  background: rgba(11, 13, 18, 0.55); border: 1px solid rgba(246, 246, 243, 0.14);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); cursor: pointer;
+}
+.ar-dot { width: 7px; height: 7px; border-radius: 50%; background: #6b7280; display: inline-block; }
+.ar-dot.ar-full { background: #6ee5ca; box-shadow: 0 0 8px #6ee5ca; }
+.ar-dot.ar-camera { background: #9ea8ff; }
+.ar-dot.ar-room { background: #e9af6b; }
+.ar-dot.ar-camera-view { background: #f6f6f3; }
+
+.ar-menu {
+  position: fixed; right: 14px; top: calc(80px + env(safe-area-inset-top, 0px)); z-index: 12; width: min(300px, calc(100vw - 28px));
+  padding: 12px; border-radius: 16px; background: rgba(11, 13, 18, 0.82); border: 1px solid rgba(246, 246, 243, 0.12);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #f6f6f3; font: 13px/1.4 var(--ui, system-ui);
+  display: grid; gap: 8px;
+}
+.ar-menu button { padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(246, 246, 243, 0.14); background: rgba(246, 246, 243, 0.06); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ar-menu button[aria-pressed='true'] { border-color: rgba(110, 229, 202, 0.45); }
+.ar-why { margin: 0; font-family: var(--display, Georgia, serif); font-size: 15px; }
+.ar-small { margin: 0; font-size: 11px; color: rgba(246, 246, 243, 0.62); }
+
+/* The AR+ shutter: a porcelain ring, bottom right, clear of the rail. */
+.ar-shutter {
+  position: fixed; right: 18px; bottom: calc(104px + env(safe-area-inset-bottom, 0px)); z-index: 12;
+  width: 58px; height: 58px; border-radius: 50%; border: 3px solid rgba(246, 246, 243, 0.92);
+  background: rgba(246, 246, 243, 0.18); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35); cursor: pointer;
+  transition: transform 0.15s, background 0.15s;
+}
+.ar-shutter::after { content: ''; position: absolute; inset: 6px; border-radius: 50%; background: rgba(246, 246, 243, 0.9); }
+.ar-shutter:active { transform: scale(0.92); }
+.ar-shutter.flash { background: #fff; }
+
+.ar-hint {
+  position: fixed; left: 50%; bottom: calc(170px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 8px); z-index: 11;
+  max-width: calc(100vw - 32px); padding: 9px 14px; border-radius: 14px; text-align: center;
+  background: rgba(11, 13, 18, 0.6); color: #f6f6f3; font: 13px/1.35 var(--ui, system-ui);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); opacity: 0; pointer-events: none;
+  transition: opacity 0.35s, transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.ar-hint.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* Tier change: a soft iris through graphite (never a hard jump). */
+.ar-fade { position: fixed; inset: 0; z-index: 20; pointer-events: none; opacity: 0; background: radial-gradient(circle at 50% 55%, rgba(11, 13, 18, 0.55), #0b0d12 70%); transition: opacity 0.38s ease; }
+.ar-fade.on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .ar-fade { transition: none; } }

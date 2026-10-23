@@ -96,6 +96,21 @@ export class Stage {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.OrthographicCamera();
   readonly world = new THREE.Group();
+  /**
+   * AR (external-camera) mode. The real camera's projection and pose drive `arCamera`; the world
+   * group is placed on a real surface and scaled to real size, so every system keeps working in
+   * its usual local units. Diorama ground, grass, sky and weather hide; the creature, its toys and
+   * decor stay. `arOccluders` holds depth-only stand-ins for the real room (metres, scene space).
+   */
+  readonly arCamera = new THREE.PerspectiveCamera();
+  readonly arOccluders = new THREE.Group();
+  ar: { on: boolean; scale: number } = { on: false, scale: 0.14 };
+  private dioramaOnly: THREE.Object3D[] = [];
+  private arLight = { intensity: 1, color: new THREE.Color('#ffffff') };
+  /** The camera actually rendering right now. */
+  get view(): THREE.Camera {
+    return this.ar.on ? this.arCamera : this.camera;
+  }
   /** CSS px per world unit. */
   px = 0;
   w = 1;
@@ -162,6 +177,7 @@ export class Stage {
     ground.rotation.x = -Math.PI / 2;
     ground.position.z = 9.5;
     this.world.add(ground);
+    this.dioramaOnly.push(ground);
     this.mossMat.transparent = true;
     this.mossMat.alphaMap = radialTexture();
     this.mossMat.depthWrite = false;
@@ -170,6 +186,7 @@ export class Stage {
     moss.scale.set(1.25, 0.62, 1);
     moss.position.set(0, 0.004, -0.1);
     this.world.add(moss);
+    this.dioramaOnly.push(moss);
 
     // Grass: instanced blades with a wind-sway vertex shader driven by the real wind.
     this.grassMat = new THREE.MeshStandardMaterial({ color: '#7DBF98', roughness: 0.9, side: THREE.DoubleSide, vertexColors: true });
@@ -209,6 +226,7 @@ export class Stage {
       grass.setMatrixAt(i, m);
     }
     this.world.add(grass);
+    this.dioramaOnly.push(grass);
 
     this.buildDecor();
 
@@ -234,6 +252,10 @@ export class Stage {
     this.motes = new THREE.Points(moteGeo, new THREE.PointsMaterial({ color: '#fff3d6', size: 2.5, sizeAttenuation: false, transparent: true, opacity: 0.7 }));
     this.motes.frustumCulled = false;
     this.scene.add(this.rain, this.snow, this.motes);
+    this.arOccluders.renderOrder = -10;
+    this.arOccluders.visible = false;
+    this.scene.add(this.arOccluders);
+    this.arCamera.matrixAutoUpdate = false;
     this.seedParticles();
 
     this.resize();
@@ -364,19 +386,96 @@ export class Stage {
     this.layoutSky();
   }
 
-  /** Local CSS px → point on the horizontal plane at `height`. */
+  /**
+   * Local CSS px → point on the horizontal plane at `height`, in world-group (KIN-local) units.
+   * In the diorama the world group is the identity, so this is plain world space; in AR the ray
+   * runs from the real camera and lands on the real surface the KIN stands on.
+   */
   toWorld(p: Pt, height = 0): THREE.Vector3 {
-    const ndc = new THREE.Vector3((p.x / this.w) * 2 - 1, -(p.y / this.h) * 2 + 1, -1).unproject(this.camera);
-    const dir = new THREE.Vector3();
-    this.camera.getWorldDirection(dir);
-    const t = (height - ndc.y) / dir.y;
-    return ndc.add(dir.multiplyScalar(t));
+    const ndc = new THREE.Vector2((p.x / this.w) * 2 - 1, -(p.y / this.h) * 2 + 1);
+    const cam = this.view;
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(ndc, cam);
+    const inv = this.world.matrixWorld.clone().invert();
+    const o = ray.ray.origin.clone().applyMatrix4(inv);
+    const d = ray.ray.direction.clone().transformDirection(inv);
+    if (Math.abs(d.y) < 1e-6) return o;
+    const t = (height - o.y) / d.y;
+    return o.add(d.multiplyScalar(t));
   }
 
-  /** World point → local CSS px. */
+  /** World-group (KIN-local) point → local CSS px. */
   toScreen(v: THREE.Vector3): Pt {
-    const p = v.clone().project(this.camera);
+    const p = v.clone().applyMatrix4(this.world.matrixWorld).project(this.view);
     return { x: (p.x + 1) * 0.5 * this.w, y: (1 - p.y) * 0.5 * this.h };
+  }
+
+  // ── AR mode ───────────────────────────────────────────────────────────────────────────────
+
+  /** Switch to the external (real) camera. The page behind the canvas must be transparent. */
+  enterAR(scale = this.ar.scale) {
+    this.ar = { on: true, scale };
+    for (const o of this.dioramaOnly) o.visible = false;
+    this.rain.visible = this.snow.visible = this.motes.visible = false;
+    this.skyEl.style.display = 'none';
+    this.scene.fog = null;
+    this.arOccluders.visible = true;
+    this.renderer.setClearColor(0x000000, 0);
+    // Until placed, the KIN waits a metre ahead of where the session started, on a virtual floor.
+    this.placeWorld(new THREE.Vector3(0, -1.1, -1.2), 0, scale);
+    this.applyArLight();
+  }
+
+  exitAR() {
+    this.ar = { on: false, scale: this.ar.scale };
+    for (const o of this.dioramaOnly) o.visible = true;
+    this.skyEl.style.display = '';
+    this.scene.fog = new THREE.Fog('#F6F6F3', 20, 24.6);
+    this.arOccluders.visible = false;
+    this.world.position.set(0, 0, 0);
+    this.world.rotation.set(0, 0, 0);
+    this.world.scale.setScalar(1);
+    this.world.updateMatrixWorld(true);
+    if (this.sky) this.setSky(this.sky);
+    this.resize();
+  }
+
+  /** Put KIN's world on a real surface: `at` in metres, `yaw` so the garden faces the viewer. */
+  placeWorld(at: THREE.Vector3, yaw: number, scale = this.ar.scale) {
+    this.ar.scale = scale;
+    this.world.position.copy(at);
+    this.world.rotation.set(0, yaw, 0);
+    this.world.scale.setScalar(scale);
+    this.world.updateMatrixWorld(true);
+  }
+
+  /** Real camera, column-major arrays straight from ARKit (projection for this viewport, view). */
+  setArCamera(projection: ArrayLike<number>, view: ArrayLike<number>) {
+    const c = this.arCamera;
+    c.projectionMatrix.fromArray(projection as number[]);
+    c.projectionMatrixInverse.copy(c.projectionMatrix).invert();
+    c.matrixWorldInverse.fromArray(view as number[]);
+    c.matrixWorld.copy(c.matrixWorldInverse).invert();
+    c.matrixWorld.decompose(c.position, c.quaternion, c.scale);
+  }
+
+  /** Real room light: ARKit's ambient intensity (≈1 neutral) and colour. */
+  setArLight(intensity: number, color: THREE.Color) {
+    this.arLight.intensity = intensity;
+    this.arLight.color.copy(color);
+    if (this.ar.on) this.applyArLight();
+  }
+
+  private applyArLight() {
+    const { intensity: k, color } = this.arLight;
+    this.hemi.color.copy(color);
+    this.hemi.groundColor.copy(color).multiplyScalar(0.45);
+    this.hemi.intensity = 1.1 * k;
+    this.sun.color.copy(color);
+    this.sun.intensity = 1.4 * k;
+    this.sun.position.set(0.6, 4, 2.5); // from above and slightly in front: a room's ceiling light
+    this.fill.intensity = 0.35 * k;
+    this.plantLight.intensity = 0.4;
   }
 
   /** World x just beyond the left/right edge, at depth z (where a KIN is fully off-screen). */
@@ -391,7 +490,7 @@ export class Stage {
     this.pal = p;
     this.skyEl.style.background = this.skyGradient();
     this.starsEl.style.opacity = String(Math.max(0, p.night - 0.35) * (1 - s.cloud * 0.9));
-    (this.scene.fog as THREE.Fog).color.set(p.horizon);
+    (this.scene.fog as THREE.Fog | null)?.color.set(p.horizon);
     this.tintGround();
     this.hemi.color.copy(p.hemiSky);
     this.hemi.groundColor.copy(p.hemiGround);
@@ -409,6 +508,7 @@ export class Stage {
     const dir = THREE.MathUtils.degToRad(s.windDir + 180); // blows toward
     this.grassU.uWind.value.set(Math.sin(dir) * wind * 0.5, -Math.cos(dir) * wind * 0.2);
     this.layoutSky();
+    if (this.ar.on) this.applyArLight(); // the real room's light wins over the sky's
   }
 
   /** Snow lying on the garden: the meadow whitens and the grass hides under it. */
@@ -477,6 +577,10 @@ export class Stage {
 
   update(dt: number, t: number) {
     this.grassU.uTime.value = t;
+    if (this.ar.on) {
+      this.rain.visible = this.snow.visible = this.motes.visible = false;
+      return;
+    }
     if (this.pxTarget && Math.abs(this.px - this.pxTarget) > 0.3) {
       this.px += (this.pxTarget - this.px) * Math.min(1, dt * 2.5);
       this.frame();
@@ -589,7 +693,7 @@ export class Stage {
   }
 
   render() {
-    this.renderer.render(this.scene, this.camera);
+    this.renderer.render(this.scene, this.view);
   }
 }
 

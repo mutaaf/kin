@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		02AA519538518B9EE78C2725 /* Vision.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 59B91A24733866302D199D4A /* Vision.framework */; };
+		19064150C31ED0C2DF07C151 /* ARPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8624615D061FE5CC365517B /* ARPlugin.swift */; };
 		2069FF869D4D18D523C634D2 /* KINAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD3F882A14DBC9083645F628 /* KINAttributes.swift */; };
 		28750360CAA0AAEBE89138FC /* KINStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CACB9A276025BCCE5201F6DC /* KINStore.swift */; };
 		2965BC14DF61D7AB66D48887 /* CareIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCFEDD76A635A112179085DE /* CareIntent.swift */; };
@@ -21,6 +23,7 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		59B62ED8287F5ADEE0146D3B /* LiveActivityPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6734218A66E96C583616FCAA /* LiveActivityPlugin.swift */; };
 		5A800E9F2886F9764B6DEB12 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D963812AC380660308F07E22 /* Foundation.framework */; };
+		5E72244C1ADC492F354DE485 /* ARKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA52A1EA2C417A520A2BEB18 /* ARKit.framework */; };
 		7F90DE33729811696265785B /* KINLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74C8A7360F5DBA1576F0371D /* KINLiveActivity.swift */; };
 		8933AACBE9EC9EBDAF6BA5FE /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB3F1CE10F64A21BFEFFA55B /* AppIntents.framework */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
@@ -75,6 +78,7 @@
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
+		59B91A24733866302D199D4A /* Vision.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Vision.framework; path = System/Library/Frameworks/Vision.framework; sourceTree = SDKROOT; };
 		669AC74972B75DD200B3F935 /* KINWidgetsBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KINWidgetsBundle.swift; sourceTree = "<group>"; };
 		6734218A66E96C583616FCAA /* LiveActivityPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LiveActivityPlugin.swift; sourceTree = "<group>"; };
 		6F5EB447C01F1AD8E3A1E249 /* App.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
@@ -92,6 +96,8 @@
 		DB3F1CE10F64A21BFEFFA55B /* AppIntents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
 		E67AB64FC3BC4A60BB7505E5 /* KINActivityViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KINActivityViews.swift; sourceTree = "<group>"; };
 		ED7C54A995E66C163D6D640F /* KINPortrait.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KINPortrait.swift; sourceTree = "<group>"; };
+		F8624615D061FE5CC365517B /* ARPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ARPlugin.swift; sourceTree = "<group>"; };
+		FA52A1EA2C417A520A2BEB18 /* ARKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ARKit.framework; path = System/Library/Frameworks/ARKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -100,6 +106,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */,
+				5E72244C1ADC492F354DE485 /* ARKit.framework in Frameworks */,
+				02AA519538518B9EE78C2725 /* Vision.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -126,6 +134,8 @@
 				03EA52E266C816CACAF0647B /* WidgetKit.framework */,
 				4F40245CB94D36852C51A5FF /* ActivityKit.framework */,
 				DB3F1CE10F64A21BFEFFA55B /* AppIntents.framework */,
+				FA52A1EA2C417A520A2BEB18 /* ARKit.framework */,
+				59B91A24733866302D199D4A /* Vision.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -167,6 +177,7 @@
 				6734218A66E96C583616FCAA /* LiveActivityPlugin.swift */,
 				AA23524830FB82B41B392739 /* KINBridgeViewController.swift */,
 				6F5EB447C01F1AD8E3A1E249 /* App.entitlements */,
+				F8624615D061FE5CC365517B /* ARPlugin.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -255,9 +266,8 @@
 				LastSwiftUpdateCheck = 0920;
 				LastUpgradeCheck = 0920;
 				TargetAttributes = {
-					504EC3031FED79650016851F = {
-						CreatedOnToolsVersion = 9.2;
-						LastSwiftMigration = 1100;
+					1E8C726312E972A5B93524F7 = {
+						CreatedOnToolsVersion = 16.0;
 						ProvisioningStyle = Automatic;
 						SystemCapabilities = {
 							com.apple.ApplicationGroups.iOS = {
@@ -265,8 +275,9 @@
 							};
 						};
 					};
-					1E8C726312E972A5B93524F7 = {
-						CreatedOnToolsVersion = 16.0;
+					504EC3031FED79650016851F = {
+						CreatedOnToolsVersion = 9.2;
+						LastSwiftMigration = 1100;
 						ProvisioningStyle = Automatic;
 						SystemCapabilities = {
 							com.apple.ApplicationGroups.iOS = {
@@ -348,6 +359,7 @@
 				2965BC14DF61D7AB66D48887 /* CareIntent.swift in Sources */,
 				59B62ED8287F5ADEE0146D3B /* LiveActivityPlugin.swift in Sources */,
 				9EC79F635678C0C8CBADC574 /* KINBridgeViewController.swift in Sources */,
+				19064150C31ED0C2DF07C151 /* ARPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
