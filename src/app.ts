@@ -22,6 +22,7 @@ import { watchStitch } from './stitch/gesture';
 import { Hud } from './ui/hud';
 import { attachWorld } from './world/attach';
 import { ArController } from './ar';
+import { toPhysicsEnv } from './ar/physicsEnv';
 import * as careModel from './core/care';
 import { captureRegion, live, liveStateFrom, needsFromDrives } from './platform/live';
 import { initNative, isNative, setHaptics, tap } from './platform/native';
@@ -105,11 +106,12 @@ export async function startApp(slot: string) {
   // AR+ style), chosen from a capability ladder and live device conditions; the habitat elsewhere.
   const ar = embed ? null : new ArController(stage, kv);
   void ar?.boot();
-  type WorldHooks = { noticeReal?: (label: string, at: THREE.Vector3) => void; physics?: { setEnvironment?: (env: unknown) => void } };
-  const hooks = () => world?.world as unknown as WorldHooks | undefined;
+  // Real objects reach the world once it can react to them (noticeReal is optional until then).
+  type WorldHooks = { noticeReal?: (label: string, at: THREE.Vector3) => void };
   ar?.on((e) => {
-    if (e.type === 'object-seen') hooks()?.noticeReal?.(e.object.label, e.object.local);
-    if ((e.type === 'surfaces' || e.type === 'mesh') && ar.environment) hooks()?.physics?.setEnvironment?.(ar.environment);
+    if (e.type === 'object-seen') (world?.world as unknown as WorldHooks | undefined)?.noticeReal?.(e.object.label, e.object.local);
+    // The real room becomes the physics ground: feet plant on your floor and table (src/ar/physicsEnv).
+    if ((e.type === 'surfaces' || e.type === 'mesh') && ar.environment) world?.world.physics?.setEnvironment(toPhysicsEnv(ar.environment));
   });
   // Peer ids must be unique across devices (every phone's first home is slot "home").
   let device = kv.get('kin:device');
@@ -369,6 +371,10 @@ export async function startApp(slot: string) {
         const L = layout(srcRect, mine, srcEdge, dyMine);
         hud.seam(fx.edge as 'left' | 'right', 'crossing');
         const gv = new KinView(makeGenome(fx.visitor.seed), stage);
+        // Guests plant their feet on the same ground (lawn or real AR surfaces). The character
+        // controller belongs to the home KIN, so guests don't get a mover.
+        const phys = world?.world.physics;
+        if (phys) gv.groundAt = (x, z, fromY) => phys.groundAt(x, z, fromY);
         gv.placeAt(stage.edgeX(fx.edge as 'left' | 'right', 0.2, 1.4), 0.2);
         gv.visible = false;
         const visitorReaction = arrivalReaction(
