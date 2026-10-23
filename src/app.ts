@@ -25,7 +25,12 @@ import { ArController } from './ar';
 import { toPhysicsEnv } from './ar/physicsEnv';
 import { expression, experience, loadPersona, personaCard, savePersona, settle, type Experience } from './core/persona';
 import { SpeechLayer } from './ui/speech';
-import { FeedSystem, snackLine } from './world/feed';
+import { FeedSystem, snackFromCard, snackLine } from './world/feed';
+import { CameraDirector, orthoRig } from './render/camera';
+import { HABITATS, habitatQuality, mountHabitat } from './habitat';
+import { palette } from './render/stage';
+import { Shell, todayFrom } from './ui/shell';
+import { ADJ, blend, NOUN, why as personaWhy } from './core/persona';
 import * as careModel from './core/care';
 import { captureRegion, live, liveStateFrom, needsFromDrives } from './platform/live';
 import { initNative, isNative, setHaptics, tap } from './platform/native';
@@ -72,6 +77,18 @@ export async function startApp(slot: string) {
   const save = () => store.saveKin({ ...kin, lastSeenAt: Date.now() });
   const genome = genomeOf(kin);
   const stage = new Stage(document.getElementById('stage')!);
+  // Living habitat (src/habitat): a rich, original world around the KIN, lit by the real sky. It
+  // replaces the CSS sky; AR hides it while the real room is on screen.
+  const habitatKey = `kin:v1:${slot}:habitat`;
+  let habitatId = kv.get(habitatKey) ?? 'sky-meadow';
+  let habitat = mountHabitat(stage, habitatId, habitatQuality());
+  const skyEl = document.querySelector<HTMLElement>('#stage .sky');
+  if (skyEl) skyEl.style.display = 'none';
+  /** Every sky change lights the stage and the habitat together. */
+  const applySky = (s: Sky) => {
+    stage.setSky(s);
+    habitat.setSky(s, palette(s));
+  };
   const sfx = new Sfx();
   sfx.enabled = settings.sound;
   void initNative();
@@ -80,6 +97,11 @@ export async function startApp(slot: string) {
   view.voice.enabled = settings.sound;
   view.reducedMotion = settings.reducedMotion;
   view.setAge(kin.hatched ? (now0 - kin.bornAt) / 86_400_000 : 0);
+  // KIN Spotlight (src/render/camera): frames the creature cinematically in solo play, and hands
+  // back to the Stage's shared physical scale ('crossing') whenever another screen is involved.
+  const director = new CameraDirector(orthoRig(stage), { reducedMotion: () => settings.reducedMotion, bounds: () => habitat.bounds });
+  director.follow(() => [{ pos: view.pos, height: view.height, size: genome.size }, ...[...guests.values()].map((g) => ({ pos: g.view.pos, height: g.view.height, size: g.view.genome.size }))]);
+  let pendingSnapshot: ((b: Blob | null) => void) | null = null;
   // Warm the creature's shaders before it is first seen (fur shells, eyes): otherwise the first
   // visible frame compiles them on the main thread, a visible hitch at the hatch. Invisible
   // objects are skipped by compile, so show the root just for the compile pass.
@@ -162,11 +184,11 @@ export async function startApp(slot: string) {
     sunElev: 25, sunAz: 180, code: 1, fetchedAt: 0, source: 'default',
   };
   sky = { ...sky, ...sunNow(sky) };
-  stage.setSky(sky);
+  applySky(sky);
   const refreshSky = async () => {
     sky = await readSky(kv, { precise: settings.preciseSky, search: location.search });
     if (directed) sky = directed(sky);
-    stage.setSky(sky);
+    applySky(sky);
     hud.skyLine(describeSky(sky) + (sky.place ? ` · ${sky.place}` : ''));
   };
   /** A sky override set live by an embedding page (trailer scenes). */
@@ -175,7 +197,7 @@ export async function startApp(slot: string) {
   setInterval(refreshSky, 10 * 60_000);
   setInterval(() => {
     sky = { ...sky, ...sunNow(sky) };
-    stage.setSky(sky);
+    applySky(sky);
   }, 60_000);
 
   // ── Geometry: where this window is on the screen, so two windows can line up.
@@ -230,6 +252,9 @@ export async function startApp(slot: string) {
     const c = ctx();
     kin = { ...kin, drives: drift(kin.drives, current.action, 0.25, c) };
     pushLive();
+    director.setMode(session.peers.size || guests.size || kin.placement.kind !== 'home' || embed ? 'crossing' : director.soloMode);
+    shell?.setPresence(guests.size || kin.placement.kind === 'away' ? 'party' : session.peers.size ? 'social' : 'solo');
+    if (tick % 8 === 0) shell?.refresh();
     if (tick % 240 === 0) {
       persona = settle(persona, Date.now(), { hour: new Date().getHours(), weather: weatherWord(sky), active: current.action !== 'sleep' });
       savePersona(kv, slot, persona);
@@ -655,18 +680,18 @@ export async function startApp(slot: string) {
         { dur: 500, enter: () => ((view.look = new THREE.Vector3(0, 2.4, 6)), (view.mood = 'surprised'), view.earFlick(1.5)) },
         { dur: 400, enter: () => (view.squashImpulse(-0.3)) },
         { dur: 700, enter: () => ((view.mood = 'happy'), view.squashImpulse(0.5), sfx.chirp(1.2)) },
-        {
-          dur: 1, enter: () => hud.nameCard(kin.name, (name) => {
-            kin = remember({ ...kin, name: name || kin.name, hatched: true }, { at: Date.now(), kind: 'hatched', note: `Hatched on a ${weatherWord(sky)} ${partOfDay()}.`, weather: weatherWord(sky) });
-            save();
-            hud.who(kin);
-            session.hello(false);
-            hud.rail(true);
-            hud.hint('Stroke to pet. Tap Gather to visit a friend.', 4200);
-            setTimeout(() => (wantSnapshot = true), 1500);
-          }),
-        },
       ]);
+      // The name card runs on its own clock, aligned with the hatch beats above. It must not ride the
+      // creature's animation queue: other systems (world actors, idles) may replace that script.
+      setTimeout(() => hud.nameCard(kin.name, (name) => {
+        kin = remember({ ...kin, name: name || kin.name, hatched: true }, { at: Date.now(), kind: 'hatched', note: `Hatched on a ${weatherWord(sky)} ${partOfDay()}.`, weather: weatherWord(sky) });
+        save();
+        hud.who(kin);
+        session.hello(false);
+        hud.rail(true);
+        hud.hint('Stroke to pet. Tap Gather to visit a friend.', 4200);
+        setTimeout(() => (wantSnapshot = true), 1500);
+      }), 650 + 500 + 400 + 700);
     }
   };
   if (!kin.hatched) {
@@ -768,7 +793,7 @@ export async function startApp(slot: string) {
             return out;
           };
           sky = directed(sky);
-          stage.setSky(sky);
+          applySky(sky);
           break;
         }
         case 'pet':
@@ -874,6 +899,101 @@ export async function startApp(slot: string) {
     }
   };
 
+  // ── The MyKin shell (src/ui/shell): the creature first; controls rise on touch and recede.
+  const switchHabitat = (id: string) => {
+    if (id === habitatId) return;
+    habitat.dispose();
+    habitatId = id;
+    kv.set(habitatKey, id);
+    habitat = mountHabitat(stage, id, habitatQuality());
+    habitat.setSky(sky, palette(sky));
+  };
+  const openAI = () => void import('./ai/settings').then((m) => m.openAISettings());
+  const askKin = async (question: string) => {
+    if (thinking || !kin.hatched) return;
+    thinking = true;
+    try {
+      grow({ k: 'talk', text: question });
+      const { askTheatre } = await import('./ai/theatre');
+      const r = await askTheatre({ card: cardNow(), seed: kin.seed, ai: loadAI(), reduced: settings.reducedMotion, onSettings: openAI, question });
+      const ex = expression(persona);
+      void speech.say({ who: 'me', text: r.answer, style: ex.speech, mood: r.mood, title: ex.title, name: kin.name, hue: ex.hue });
+      kin = remember(kin, { at: Date.now(), kind: 'thought', note: `You asked “${question}”. ${kin.name}: “${r.answer}”` });
+      save();
+      current = { action: r.act, until: Date.now() + 6000, why: [`answered: ${r.mood}`] };
+      view.applyAction(r.act);
+    } finally {
+      thinking = false;
+    }
+  };
+  const analyzeKin = async () => {
+    if (thinking || !kin.hatched) return;
+    thinking = true;
+    try {
+      const { analyzeTheatre } = await import('./ai/theatre');
+      const r = await analyzeTheatre({ card: cardNow(), seed: kin.seed, ai: loadAI(), reduced: settings.reducedMotion, onSettings: openAI });
+      kin = remember(kin, { at: Date.now(), kind: 'thought', note: `Personality reading: ${r.becoming}. Motto: “${r.motto}”` });
+      save();
+    } finally {
+      thinking = false;
+    }
+  };
+  const feedTopic = async (topic: string) => {
+    const { snackFromTopic } = await import('./ai/client');
+    const { card } = await snackFromTopic(topic, loadAI());
+    feed?.serve(snackFromCard(card));
+    hud.toast(`${card.name} is ready. Drag it to ${kin.name}.`);
+  };
+  world?.ui.useShell();
+  const shellHost = document.getElementById('shell');
+  const shell = shellHost && !embed
+    ? new Shell(shellHost, {
+        hud,
+        reducedMotion: () => settings.reducedMotion,
+        identity: () => {
+          const c = world?.world.care;
+          const bond = careModel.bondLevel(c?.bondXp ?? 0);
+          return {
+            name: kin.name, level: bond.level, levelName: bond.name, progress: bond.need ? bond.into / bond.need : 1,
+            title: expression(persona).title,
+            affection: c?.needs.affection ?? kin.bond, energy: kin.drives.energy, mood: c ? careModel.mood(c) : 0.7,
+            moodWord: view.mood === 'neutral' ? temperament(kin.traits) : view.mood,
+          };
+        },
+        persona: () => ({
+          title: expression(persona).title,
+          dominant: NOUN[expression(persona).dominant],
+          blend: blend(persona).slice(0, 4).map(([a, level]) => ({ id: a, label: `${NOUN[a]} · ${ADJ[a]}`, level })),
+          why: personaWhy(persona),
+        }),
+        today: () => todayFrom(kin.memories, world?.world.care ?? null),
+        habitats: {
+          list: HABITATS,
+          current: () => habitatId,
+          level: () => careModel.bondLevel(world?.world.care.bondXp ?? 0).level,
+          select: switchHabitat,
+        },
+        actions: {
+          feed: () => world?.ui.cue('feed'), play: () => world?.ui.cue('play'), bath: () => world?.ui.cue('bath'),
+          train: () => world?.ui.openRing(), collection: () => world?.ui.openBook(),
+          think: () => void askThought(), gather: () => hud.openSheet('gather'),
+          memories: () => hud.openSheet('memories'), settings: () => hud.openSheet('settings'),
+        },
+        camera: {
+          enter: () => {
+            director.soloMode = 'portrait';
+            director.setMode('portrait');
+          },
+          exit: () => {
+            director.soloMode = 'spotlight';
+            director.setMode('spotlight');
+          },
+          snapshot: () => new Promise<Blob | null>((res) => (pendingSnapshot = res)),
+        },
+        ai: { ask: (q) => void askKin(q), analyze: () => void analyzeKin(), snackFromTopic: (t) => void feedTopic(t) },
+      })
+    : null;
+
   // ── Render loop
   let last = performance.now();
   let fps = 60;
@@ -898,7 +1018,18 @@ export async function startApp(slot: string) {
     for (const g of guests.values()) g.view.update(dt, now, t);
     world?.update(dt, now, t);
     feed?.update(now);
+    // In AR the real room is the world: the AR session drives the camera and the habitat steps aside.
+    habitat.group.visible = !ar?.active;
+    if (!ar?.active) {
+      director.update(dt, t);
+      habitat.update(dt, t, stage);
+    }
     stage.render();
+    if (pendingSnapshot) {
+      const done = pendingSnapshot;
+      pendingSnapshot = null;
+      stage.renderer.domElement.toBlob((b) => done(b), 'image/png');
+    }
     // The Live Activity's portrait of THIS creature, taken right after render (buffers aren't kept).
     if (wantSnapshot && live.available && view.visible && t > 3) {
       wantSnapshot = false;

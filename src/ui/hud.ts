@@ -239,6 +239,7 @@ export class Hud {
   }
 
   openSheet(name: string) {
+    this.gatherSig = '';
     this.sheet = name;
     this.confirmRelease = false;
     document.getElementById('rail')?.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sheet === name)));
@@ -248,8 +249,17 @@ export class Hud {
     $('sheet').hidden = false;
   }
 
+  private gatherSig = '';
+  /**
+   * Presence heartbeats arrive every ~1.5 s per peer. Re-render only when what the sheet shows
+   * changed, or buttons get swapped out from under a finger (and focus resets) on every beat.
+   */
   refreshGather() {
-    if (this.sheet === 'gather') this.render();
+    if (this.sheet !== 'gather') return;
+    const sig = JSON.stringify([this.b.canVisit(), this.b.settings.visits, this.b.peers().map((p) => [p.peer, p.name, p.open, p.temperament, p.rect?.fine])]);
+    if (sig === this.gatherSig) return;
+    this.gatherSig = sig;
+    this.render();
   }
 
   private render() {

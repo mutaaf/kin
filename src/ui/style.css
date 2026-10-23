@@ -18,6 +18,9 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* The hidden attribute always wins. Components that set display (grid/flex) would otherwise
+   override the browser's [hidden] rule and show "hidden" elements (the empty AR menu pill). */
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; background: var(--graphite); color: var(--porcelain); overflow: hidden; overscroll-behavior: none; }
 body { font-family: var(--ui); font-size: 15px; -webkit-font-smoothing: antialiased; }
 button { font: inherit; color: inherit; }

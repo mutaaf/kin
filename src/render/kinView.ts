@@ -54,6 +54,12 @@ interface Task {
   exit?: () => void;
   /** Optional absolute start time (epoch ms). */
   at?: number;
+  /**
+   * Protected: a crossing beat synchronised with another screen. script() never drops it; new
+   * scripts queue behind it instead (otherwise a world actor could cancel a hop and leave the
+   * creature invisible, or out of sync with the other device).
+   */
+  keep?: boolean;
 }
 
 export type Mood = 'neutral' | 'happy' | 'sleepy' | 'surprised' | 'sad' | 'content' | 'love' | 'curious' | 'grumpy' | 'giggly';
@@ -226,6 +232,12 @@ export class KinView {
 
   /** Replace any running script. */
   script(tasks: Task[]) {
+    if (this.cur?.task.keep || this.queue.some((t) => t.keep)) {
+      // A crossing beat is in flight: keep it, and only replace what's queued after it.
+      const kept = this.queue.filter((t) => t.keep);
+      this.queue = [...kept, ...tasks.filter(Boolean)];
+      return;
+    }
     if (this.cur?.started) this.cur.task.exit?.();
     this.cur = null;
     this.reachAt = null; // a new intent straightens up (an interrupted meal never leaves it bent)
@@ -333,6 +345,7 @@ export class KinView {
    */
   hopTask(hop: Hop, mine: Rect, at: number, dur: number, side: 'out' | 'in', onDone?: () => void): Task[] {
     const pre: Task = {
+      keep: true,
       dur: 0,
       at,
       enter: () => {
@@ -341,6 +354,7 @@ export class KinView {
     };
     let lastX = 0;
     const fly: Task = {
+      keep: true,
       dur,
       at,
       enter: () => {
