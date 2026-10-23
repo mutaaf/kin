@@ -21,6 +21,8 @@ import { MultiTransport, RelayTransport, relayUrl } from './transport/relay';
 import { watchStitch } from './stitch/gesture';
 import { Hud } from './ui/hud';
 import { initNative, isNative, setHaptics, tap } from './platform/native';
+import { aiLabel, loadAI } from './ai/config';
+import type { Card } from './ai/schema';
 
 interface GuestView {
   view: KinView;
@@ -620,6 +622,9 @@ export async function startApp(slot: string) {
       if ('preciseSky' in patch) void refreshSky();
       if ('visits' in patch) session.hello(false);
     },
+    think: () => void askThought(),
+    openAI: () => void import('./ai/settings').then((m) => m.openAISettings()),
+    aiLabel: () => aiLabel(),
     forgetMemories: () => {
       kin = { ...kin, memories: [], friends: {} };
       save();
@@ -683,6 +688,50 @@ export async function startApp(slot: string) {
     });
     emit('ready');
   }
+
+  // ── The AI director: "what is your KIN thinking?" A free edge model by default or the player's
+  // own key; the call plays live in the aurora-field theatre (lazy chunk), and the answer is a
+  // validated thought plus ONE action from the brain's own safe vocabulary.
+  let thinking = false;
+  const cardNow = (): Card => {
+    const h = new Date().getHours();
+    return {
+      name: kin.name, temperament: temperament(kin.traits), traits: kin.traits, drives: kin.drives,
+      weather: { word: weatherWord(sky), tempC: sky.tempC, windKmh: sky.windKmh },
+      timeOfDay: sky.sunElev < -6 ? 'night' : sky.sunElev < 6 ? (h < 12 ? 'dawn' : 'evening') : h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening',
+      doing: current.action,
+      recent: kin.memories.filter((m) => m.kind !== 'thought').slice(0, 4).map((m) => ({ kind: m.kind, other: m.other?.name, reaction: m.reaction })),
+      friends: Object.values(kin.friends).sort((a, b) => b.meets - a.meets).slice(0, 3).map((f) => ({ name: f.name, meets: f.meets })),
+    };
+  };
+  const askThought = async () => {
+    if (thinking || !kin.hatched || kin.placement.kind !== 'home') return;
+    thinking = true;
+    sfx.unlock();
+    try {
+      view.script([{ dur: 900, enter: () => ((view.mood = 'content'), (view.look = new THREE.Vector3(view.pos.x + 1.5, 2.6, view.pos.z + 2))) }]);
+      const { runTheatre } = await import('./ai/theatre');
+      const r = await runTheatre({
+        card: cardNow(), seed: kin.seed, ai: loadAI(), reduced: settings.reducedMotion,
+        onSettings: () => void import('./ai/settings').then((m) => m.openAISettings()),
+      });
+      const src = r.source === 'model' ? `thought with ${r.model?.replace(/^@cf\/[^/]+\//, '')}` : 'thought on this device';
+      hud.thought(r.thought, src, () => {
+        const h = view.screenHit();
+        return { x: h.x - 20, y: h.y - h.r * 0.9 };
+      });
+      sfx.chirp(1.15);
+      kin = remember(kin, { at: Date.now(), kind: 'thought', note: `${kin.name} thought: “${r.thought}”`, weather: weatherWord(sky) });
+      save();
+      // The brain performs the chosen action like any of its own choices.
+      current = { action: r.act, until: Date.now() + 6000, why: [`the director: ${r.mood}`] };
+      view.look = null;
+      view.applyAction(r.act);
+      view.mood = r.mood === 'sleepy' ? 'sleepy' : r.mood === 'happy' ? 'happy' : 'content';
+    } finally {
+      thinking = false;
+    }
+  };
 
   // ── Render loop
   let last = performance.now();

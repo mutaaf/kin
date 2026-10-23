@@ -22,6 +22,9 @@ interface Bindings {
   setSettings: (p: Partial<Settings>) => void;
   forgetMemories: () => void;
   release: () => void;
+  think: () => void;
+  openAI: () => void;
+  aiLabel: () => string;
 }
 
 export class Hud {
@@ -40,6 +43,10 @@ export class Hud {
         else this.openSheet(s);
       });
     }
+    $('rail').querySelector<HTMLButtonElement>('[data-action="think"]')?.addEventListener('click', () => {
+      this.closeSheet();
+      this.b.think();
+    });
     addEventListener('keydown', (e) => e.key === 'Escape' && this.closeSheet());
   }
 
@@ -102,6 +109,31 @@ export class Hud {
 
   debugVisible(on: boolean) {
     $('debug').hidden = !on;
+  }
+
+  /** A thought bubble that follows a screen point (the creature's head) for a while. */
+  thought(text: string, sub: string, at: () => { x: number; y: number } | null, ms = 7000) {
+    document.querySelectorAll('.thought').forEach((n) => n.remove());
+    const el = document.createElement('div');
+    el.className = 'thought';
+    el.setAttribute('role', 'status');
+    el.innerHTML = `${esc(text)}<small>${esc(sub)}</small>`;
+    $('hud').append(el);
+    const end = performance.now() + ms;
+    const place = () => {
+      const p = at();
+      if (!p || !el.isConnected) return;
+      el.style.left = `${Math.max(12, Math.min(innerWidth - 120, p.x))}px`;
+      el.style.top = `${Math.max(90, p.y)}px`;
+      if (performance.now() < end) requestAnimationFrame(place);
+      else {
+        el.classList.remove('on');
+        setTimeout(() => el.remove(), 400);
+      }
+    };
+    place();
+    requestAnimationFrame(() => el.classList.add('on'));
+    el.addEventListener('click', () => el.remove());
   }
 
   /** Incoming visit request (beat 1: the host decides). */
@@ -264,6 +296,8 @@ export class Hud {
         ${sw('reducedMotion', 'Reduced motion', 'Fades instead of hops')}
         ${sw('preciseSky', 'Precise sky', 'Use your location (rounded to ~11 km) for weather. Off: your timezone’s city.')}
         ${sw('debug', 'Why did it do that?', 'Show the brain’s reasoning')}
+        <div class="label">Thoughts</div>
+        <div class="toggle"><div>Your own AI<small>${esc(this.b.aiLabel())}. Paste a Claude, OpenAI, xAI or Gemini key in one step.</small></div><button class="btn" data-ai>${'Change'}</button></div>
         <div class="label">This KIN</div>
         <div class="row"><button class="btn danger" data-release>${this.confirmRelease ? `Tap again to release ${esc(k.name)}` : `Release ${esc(k.name)}`}</button></div>`;
       el.querySelectorAll<HTMLButtonElement>('.switch').forEach((b) =>
@@ -273,6 +307,7 @@ export class Hud {
           this.render();
         }),
       );
+      el.querySelector('[data-ai]')!.addEventListener('click', () => this.b.openAI());
       el.querySelector('[data-release]')!.addEventListener('click', () => {
         if (this.confirmRelease) this.b.release();
         else {

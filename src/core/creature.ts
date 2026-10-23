@@ -18,7 +18,7 @@ export interface Drives {
 export interface Memory {
   id: string;
   at: number;
-  kind: 'hatched' | 'visited' | 'hosted' | 'returned_early';
+  kind: 'hatched' | 'visited' | 'hosted' | 'returned_early' | 'thought';
   /** The other KIN, by alias only. No owner identity is ever stored. */
   other?: { id: string; name: string; hue: number };
   reaction?: Reaction;
