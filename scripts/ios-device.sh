@@ -14,12 +14,12 @@ npx cap sync ios
 
 # The App Group (shared portrait for the Live Activity) needs a one-time registration on Apple's
 # side (Xcode > App target > Signing & Capabilities, or the TestFlight API key). Until then the
-# build signs without it and the widget draws its vector face; everything else works.
+# build signs without it and the Live Activity shows the bundled hero portrait instead of the user's own creature; everything else works.
 ENT=""
 xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination "id=$DEVICE" \
   -derivedDataPath ios/build/device DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
   -allowProvisioningUpdates -quiet build 2>/dev/null || {
-  echo "App Group not registered yet: building without it (vector face on the Lock Screen)."
+  echo "App Group not registered yet: building without it (the Live Activity shows the bundled portrait)."
   ENT="CODE_SIGN_ENTITLEMENTS="
   xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination "id=$DEVICE" \
     -derivedDataPath ios/build/device DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic $ENT \
