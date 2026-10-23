@@ -83,6 +83,19 @@
 /* A collected find flies into the book. */
 .fly { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #6ee5ca; box-shadow: 0 0 16px #6ee5ca; transition: transform 0.7s cubic-bezier(0.5, 0, 0.2, 1), opacity 0.7s; }
 
+/* Under the MyKin shell, the Garden Book is reached from the shell (Collection). */
+.care-layer.shelled .book-btn { display: none; }
+.care-layer.shelled .care-toast { bottom: calc(124px + env(safe-area-inset-bottom, 0px)); }
+
+/* A coach ring on the real thing to drag or flick. */
+.cue-ring {
+  position: absolute; left: 0; top: 0; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; pointer-events: none;
+  border: 2px solid rgba(110, 229, 202, 0.95); box-shadow: 0 0 24px rgba(110, 229, 202, 0.55), inset 0 0 18px rgba(110, 229, 202, 0.35);
+  animation: cue 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+}
+@keyframes cue { 0% { scale: 0.6; opacity: 0; } 30% { opacity: 1; } 100% { scale: 1.35; opacity: 0; } }
+
 @media (prefers-reduced-motion: reduce) {
   .need.on { animation: none; }
+  .cue-ring { animation: none; opacity: 0.9; }
 }

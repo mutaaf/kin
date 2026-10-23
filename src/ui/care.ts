@@ -146,6 +146,46 @@ export class CareUI {
     }
   }
 
+  /** The shell (src/ui/shell) owns navigation: hide this layer's own Garden Book button. */
+  useShell() {
+    this.layer.classList.add('shelled');
+  }
+
+  get bookOpen() {
+    return !!this.book;
+  }
+
+  /**
+   * Coach a care verb from the action bar: a soft glowing ring on the real thing to drag or flick
+   * (the plant's berries, the ball, the water bowl) plus a one-line hint. Care stays physical;
+   * the button only shows you where.
+   */
+  cue(verb: 'feed' | 'play' | 'bath' | 'rest' | 'love') {
+    const w = this.d.world;
+    const st = this.d.stage;
+    const at: THREE.Vector3 | null =
+      verb === 'feed' ? new THREE.Vector3(DECOR.plant.x, 0.42, DECOR.plant.z)
+      : verb === 'play' ? st.ballPosition().setY(0.12)
+      : verb === 'bath' ? (w.entities.get('bowl')?.obj.position.clone().setY(0.1) ?? null)
+      : verb === 'love' ? this.d.view.pos.clone().setY(0.55)
+      : new THREE.Vector3(DECOR.nest.x, 0.1, DECOR.nest.z);
+    this.hintFor(({ feed: 'fullness', play: 'fun', bath: 'clean', rest: 'rest', love: 'affection' } as const)[verb]);
+    if (!at) return;
+    const ring = document.createElement('div');
+    ring.className = 'cue-ring';
+    ring.setAttribute('aria-hidden', 'true');
+    this.layer.append(ring);
+    const end = performance.now() + 3600;
+    const follow = () => {
+      if (!ring.isConnected) return;
+      const p = st.toScreen(at);
+      ring.style.transform = `translate(${p.x}px, ${p.y}px)`;
+      if (performance.now() < end) requestAnimationFrame(follow);
+      else ring.remove();
+    };
+    follow();
+  }
+
   /** Tapping a need glyph points at the thing that helps. */
   private hintFor(n: care.Need) {
     const w = this.d.world;

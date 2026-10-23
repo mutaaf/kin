@@ -53,13 +53,36 @@ button { font: inherit; color: inherit; }
 
 .top {
   position: absolute; top: calc(14px + var(--safe-t)); left: 16px; right: 16px;
-  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
-  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.25);
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.25); transition: opacity 0.6s var(--ease);
 }
-.who { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.who {
+  display: flex; align-items: center; gap: 10px; min-width: 0; padding: 4px 8px 4px 0; border: 0; background: none;
+  color: inherit; cursor: pointer; pointer-events: auto; text-shadow: inherit; border-radius: 12px;
+}
+.who:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+.brand { display: none; font-family: var(--display); font-size: 30px; font-weight: 600; letter-spacing: -0.02em; font-variation-settings: 'SOFT' 100, 'WONK' 1; }
 .name { font-family: var(--display); font-size: 26px; font-weight: 500; letter-spacing: -0.01em; font-variation-settings: 'SOFT' 100, 'WONK' 1; }
-.temper, .sky-line { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.temper, .sky-line, .clock { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.temper:not(:empty) { padding: 4px 9px; border-radius: 999px; border: 1px solid rgba(246, 246, 243, 0.22); background: rgba(11, 13, 18, 0.25); color: rgba(246, 246, 243, 0.85); letter-spacing: 0.16em; text-shadow: none; }
+.status-line { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .sky-line { text-align: right; }
+.clock:not(:empty)::before { content: '·'; margin-right: 10px; opacity: 0.7; }
+/* With the MyKin shell, the top line recedes with the rest of the interface. */
+body.mk-on:not(.mk-awake) .top { opacity: 0.62; }
+body.mk-photo .top, body.mk-party .top { opacity: 0 !important; }
+/* Full-screen layers must let touches through to the creature (an id selector, to beat #hud > *). */
+#hud > .speech-layer, #hud > #shell { pointer-events: none; }
+.speech-layer { position: absolute; inset: 0; z-index: 8; }
+.speech-layer > * { pointer-events: auto; }
+@media (min-width: 1024px) and (min-height: 680px) {
+  .top { left: 26px; right: 26px; top: calc(20px + var(--safe-t)); }
+  .brand { display: inline; }
+  body.mk-on .who .name { display: none; }
+}
+@media (max-width: 420px) {
+  .clock { display: none; }
+}
 
 .status {
   position: absolute; top: calc(64px + var(--safe-t)); left: 50%; transform: translate(-50%, -6px);
@@ -95,9 +118,14 @@ button { font: inherit; color: inherit; }
 .sheet {
   position: absolute; left: 50%; bottom: calc(92px + var(--safe-b)); width: min(420px, calc(100vw - 32px));
   max-height: min(62vh, 560px); overflow: auto; transform: translate(-50%, 0);
-  background: var(--glass-hi); border: 1px solid var(--line); border-radius: 22px; padding: 18px 18px 14px;
-  backdrop-filter: blur(22px) saturate(1.2); -webkit-backdrop-filter: blur(22px) saturate(1.2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)), var(--glass-hi);
+  border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 26px; padding: 18px 18px 14px; z-index: 9;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 18px 50px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(22px) saturate(1.35); -webkit-backdrop-filter: blur(22px) saturate(1.35);
   animation: rise 0.35s var(--ease);
+}
+@media (min-width: 1024px) and (min-height: 680px) {
+  .sheet { bottom: auto; top: 50%; transform: translate(-50%, -50%); width: min(520px, 46vw); animation: none; }
 }
 @keyframes rise { from { opacity: 0; transform: translate(-50%, 14px); } }
 .sheet h2 { margin: 0 0 4px; font-family: var(--display); font-weight: 500; font-size: 22px; font-variation-settings: 'SOFT' 100; }

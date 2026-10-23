@@ -37,14 +37,22 @@ export class Hud {
 
   bind(b: Bindings) {
     this.b = b;
-    for (const btn of $('rail').querySelectorAll<HTMLButtonElement>('button[data-sheet]')) {
+    // The MyKin shell (src/ui/shell) normally owns navigation. If the app hasn't mounted it, keep
+    // a minimal rail so every feature stays reachable.
+    const shell = document.getElementById('shell');
+    if (shell && !shell.classList.contains('mk-shell') && !document.getElementById('rail')) {
+      shell.innerHTML = `<nav class="rail" id="rail" aria-label="Actions">
+        ${(['gather', 'think', 'memories', 'settings'] as const).map((k) => `<button ${k === 'think' ? 'data-action="think"' : `data-sheet="${k}"`}>${k[0]!.toUpperCase() + k.slice(1)}</button>`).join('')}</nav>`;
+    }
+    const rail = document.getElementById('rail');
+    for (const btn of rail?.querySelectorAll<HTMLButtonElement>('button[data-sheet]') ?? []) {
       btn.addEventListener('click', () => {
         const s = btn.dataset.sheet!;
         if (this.sheet === s) this.closeSheet();
         else this.openSheet(s);
       });
     }
-    $('rail').querySelector<HTMLButtonElement>('[data-action="think"]')?.addEventListener('click', () => {
+    rail?.querySelector<HTMLButtonElement>('[data-action="think"]')?.addEventListener('click', () => {
       this.closeSheet();
       this.b.think();
     });
@@ -54,15 +62,17 @@ export class Hud {
   who(k: KinRecord) {
     $('name').textContent = k.name;
     $('temper').textContent = temperament(k.traits);
-    document.title = `${k.name} · KIN`;
+    document.title = `${k.name} · MyKin`;
   }
 
   skyLine(s: string) {
     $('skyline').textContent = s;
   }
 
+  /** After the hatch: show the controls (the shell listens for kin:ready). */
   rail(on: boolean) {
-    $('rail').classList.toggle('on', on);
+    document.getElementById('rail')?.classList.toggle('on', on);
+    document.getElementById('shell')?.dispatchEvent(new CustomEvent('kin:ready', { detail: on }));
   }
 
   status(text: string) {
@@ -225,13 +235,15 @@ export class Hud {
   closeSheet() {
     this.sheet = null;
     $('sheet').hidden = true;
-    $('rail').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+    document.getElementById('rail')?.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', 'false'));
   }
 
   openSheet(name: string) {
     this.sheet = name;
     this.confirmRelease = false;
-    $('rail').querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sheet === name)));
+    document.getElementById('rail')?.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sheet === name)));
+    // One sheet at a time: the shell closes its own when a HUD sheet opens.
+    document.getElementById('shell')?.dispatchEvent(new CustomEvent('kin:sheet', { detail: name }));
     this.render();
     $('sheet').hidden = false;
   }
