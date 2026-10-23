@@ -124,7 +124,9 @@ export async function startApp(slot: string) {
   });
   const visitor = (): VisitorSnapshot => ({ kinId: kin.id, seed: kin.seed, name: kin.name, traits: kin.traits, hue: genome.hue });
 
-  const session = new Session(peerId, new MultiTransport([new BroadcastTransport(peerId), relay]), info, visitor, {
+  // Embedded instances (the landing trailer) live in their own channel and never touch the relay,
+  // so a trailer KIN can never see, or visit, a real KIN open in another tab.
+  const session = new Session(peerId, embed ? new BroadcastTransport(peerId, 'kin-room-embed-' + (q.get('room') ?? 'trailer')) : new MultiTransport([new BroadcastTransport(peerId), relay]), info, visitor, {
     mode: () => settings.visits,
     capacity: 3,
     open: () => kin.placement.kind === 'home' && kin.hatched,
@@ -681,6 +683,16 @@ export async function startApp(slot: string) {
           sfx.unlock();
           sfx.enabled = !!c.on;
           break;
+        case 'pause':
+          paused = true;
+          break;
+        case 'resume':
+          if (paused) {
+            paused = false;
+            last = performance.now();
+            requestAnimationFrame(frame);
+          }
+          break;
         case 'cinema':
           document.body.classList.toggle('cinema', c.on !== false);
           break;
@@ -736,6 +748,8 @@ export async function startApp(slot: string) {
   // ── Render loop
   let last = performance.now();
   let fps = 60;
+  /** Embeds pause rendering while scrolled off-screen (the session keeps its protocol alive). */
+  let paused = false;
   const frame = (tNow: number) => {
     const dt = Math.min(0.05, (tNow - last) / 1000);
     last = tNow;
@@ -754,7 +768,7 @@ export async function startApp(slot: string) {
     view.update(dt, now, t);
     for (const g of guests.values()) g.view.update(dt, now, t);
     stage.render();
-    requestAnimationFrame(frame);
+    if (!paused) requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
   addEventListener('resize', () => stage.resize());

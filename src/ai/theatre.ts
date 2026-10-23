@@ -28,12 +28,14 @@ export interface TheatreResult extends Thought {
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const MIN_MS = { read: 2600, think: 1600 };
-const SPELL = { preset: 'aurora', point: [176, 255, 228], accent: [176, 255, 228], glow: [150, 245, 210], fog: [120, 180, 170] };
+const SPELL = { preset: 'aurora' as const, point: [176, 255, 228] as V3, accent: [176, 255, 228] as V3, glow: [150, 245, 210] as V3, fog: [120, 180, 170] as V3 };
 // The light-KIN: porcelain points with a mint glow, so the creature reads as a bright figure.
-const BODY = { preset: 'aurora', point: [236, 246, 242], accent: [110, 229, 202], glow: [110, 229, 202], fog: [60, 90, 100] };
+const BODY = { preset: 'aurora' as const, point: [236, 246, 242] as V3, accent: [110, 229, 202] as V3, glow: [110, 229, 202] as V3, fog: [60, 90, 100] as V3 };
 
 /** Points sampled from the creature's real surface, centred and scaled to the unit sphere. */
-export function kinPoints(seed: number, n = 2400): number[][] {
+type V3 = [number, number, number];
+
+export function kinPoints(seed: number, n = 2400): V3[] {
   const parts = buildCreature(makeGenome(seed));
   parts.root.updateMatrixWorld(true);
   const meshes: THREE.Mesh[] = [];
@@ -50,7 +52,7 @@ export function kinPoints(seed: number, n = 2400): number[][] {
   });
   const total = weights.reduce((a, b) => a + b, 0) || 1;
   const r = rng(seed);
-  const pts: number[][] = [];
+  const pts: V3[] = [];
   const p = new THREE.Vector3();
   meshes.forEach((m, i) => {
     const geo = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry;
@@ -67,8 +69,8 @@ export function kinPoints(seed: number, n = 2400): number[][] {
     if (geo !== m.geometry) geo.dispose();
   });
   parts.dispose();
-  const max = Math.max(...pts.map(([x, y, z]) => Math.hypot(x!, y!, z!))) || 1;
-  return pts.map(([x, y, z]) => [x! / max, y! / max, z! / max]);
+  const max = Math.max(...pts.map(([x, y, z]) => Math.hypot(x, y, z))) || 1;
+  return pts.map(([x, y, z]): V3 => [x / max, y / max, z / max]);
 }
 
 export async function runTheatre(opts: { card: Card; seed: number; ai: AIChoice; reduced: boolean; onSettings: () => void }): Promise<TheatreResult> {
