@@ -1,0 +1,11 @@
+<!-- Produces the System.Text.Json runtime DLLs for Assets/Plugins (Unity doesn't ship them for
+     players). Run: scripts/unity-stj.sh -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+</Project>
