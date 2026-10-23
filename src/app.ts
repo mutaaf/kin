@@ -4,10 +4,10 @@
 import * as THREE from 'three';
 import { Sfx } from './audio/sfx';
 import { arrivalReaction, decide, drift, type Action, type Context, type Edge } from './core/brain';
-import { catchUp, genomeOf, meet, remember, type KinRecord, type Reaction } from './core/creature';
-import { makeGenome, temperament } from './core/genome';
+import { catchUp, genomeOf, meet, newKin, remember, type KinRecord, type Reaction } from './core/creature';
+import { makeGenome, suggestName, temperament } from './core/genome';
 import { hash, randomId, rng } from './core/rng';
-import { coarseLocation, describe as describeSky, overrides, readSky, skyClock, weatherWord, type Sky } from './env/sky';
+import { applyWx, atHour, coarseLocation, describe as describeSky, overrides, readSky, skyClock, weatherWord, type Sky } from './env/sky';
 import { sunPosition } from './env/sun';
 import type { PeerInfo, ScreenRect, VisitMemory, VisitorSnapshot } from './protocol/messages';
 import { browserKV, Store, type Settings } from './persistence/store';
@@ -45,6 +45,17 @@ export async function startApp(slot: string) {
   const loaded = store.loadKin(now0);
   let kin: KinRecord = catchUp(loaded.kin, now0);
   const settings: Settings = store.loadSettings();
+  // Embed mode (?embed=1): the landing page's live trailer drives real instances over postMessage.
+  // A seeded, already-hatched KIN, auto-accepted visits, sound off until the viewer asks.
+  const q = new URLSearchParams(location.search);
+  const embed = q.has('embed');
+  if (embed) {
+    const seed = Number(q.get('seed') ?? kin.seed) >>> 0;
+    if (kin.seed !== seed || !kin.hatched) kin = { ...newKin(now0, seed), hatched: true, name: (q.get('name') ?? suggestName(seed)).slice(0, 16) };
+    settings.visits = 'auto';
+    settings.sound = false;
+    document.body.classList.add('embed');
+  }
   if (matchMedia('(prefers-reduced-motion: reduce)').matches && !kv.get(`kin:v1:${slot}:settings`)) settings.reducedMotion = true;
   if (new URLSearchParams(location.search).has('debug')) settings.debug = true;
 
@@ -79,9 +90,12 @@ export async function startApp(slot: string) {
   stage.setSky(sky);
   const refreshSky = async () => {
     sky = await readSky(kv, { precise: settings.preciseSky, search: location.search });
+    if (directed) sky = directed(sky);
     stage.setSky(sky);
     hud.skyLine(describeSky(sky) + (sky.place ? ` · ${sky.place}` : ''));
   };
+  /** A sky override set live by an embedding page (trailer scenes). */
+  let directed: ((s: Sky) => Sky) | null = null;
   void refreshSky();
   setInterval(refreshSky, 10 * 60_000);
   setInterval(() => {
@@ -616,6 +630,59 @@ export async function startApp(slot: string) {
     },
   });
   hud.debugVisible(settings.debug);
+
+  // ── Embed API: same-origin parent pages (the landing trailer) can direct this instance.
+  if (embed) {
+    const emit = (e: string, extra: Record<string, unknown> = {}) => parent !== window && parent.postMessage({ kin: 'event', e, slot, name: kin.name, ...extra }, location.origin);
+    const onOwner = session.onOwnerFx;
+    session.onOwnerFx = (fx) => (onOwner(fx), emit('owner:' + fx.e));
+    const onHost = session.onHostFx;
+    session.onHostFx = (fx) => (onHost(fx), emit('host:' + fx.e));
+    const onPeers = session.onPeers;
+    session.onPeers = () => (onPeers(), emit('peers', { n: session.peers.size }));
+    addEventListener('message', (e: MessageEvent) => {
+      if (e.origin !== location.origin || !e.data || e.data.kin !== 'cmd') return;
+      const c = e.data as { kin: 'cmd'; cmd: string; wx?: string; hour?: number; on?: boolean };
+      switch (c.cmd) {
+        case 'visit': {
+          const p = [...session.peers.values()].find((x) => x.info.open);
+          if (p) startVisit(p.info.peer);
+          break;
+        }
+        case 'recall':
+          session.applyOwner(session.owner.recall(Date.now()));
+          break;
+        case 'sky': {
+          const wx = c.wx;
+          const hour = c.hour;
+          directed = (s) => {
+            let out = hour !== undefined ? atHour(s, hour) : s;
+            if (wx) out = applyWx(out, wx);
+            return out;
+          };
+          sky = directed(sky);
+          stage.setSky(sky);
+          break;
+        }
+        case 'pet':
+          view.pet(0.9);
+          view.look = new THREE.Vector3(view.pos.x * 0.6, 2.2, 6);
+          sfx.purr();
+          break;
+        case 'hop':
+          view.script([{ dur: 420, enter: () => ((view.mood = 'happy'), view.squashImpulse(0.6), view.earFlick(1.4), sfx.chirp()) }, { dur: 600 }]);
+          break;
+        case 'sound':
+          sfx.unlock();
+          sfx.enabled = !!c.on;
+          break;
+        case 'cinema':
+          document.body.classList.toggle('cinema', c.on !== false);
+          break;
+      }
+    });
+    emit('ready');
+  }
 
   // ── Render loop
   let last = performance.now();

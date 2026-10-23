@@ -78,7 +78,7 @@ export function skyClock(hour: number | null, now = new Date()): Date {
   return d;
 }
 
-function applyWx(s: Sky, wx: string): Sky {
+export function applyWx(s: Sky, wx: string): Sky {
   const base = { ...s, source: 'override' as const };
   switch (wx) {
     case 'rain': return { ...base, precipMm: 2.5, snow: false, cloud: 0.9, windKmh: 14, tempC: 14, code: 63 };
@@ -189,4 +189,10 @@ export function weatherWord(s: Sky): string {
   if (s.tempC < 4) return 'cold';
   if (s.sunElev < -6) return 'starry';
   return s.cloud > 0.7 ? 'cloudy' : 'sunny';
+}
+
+/** Re-light a sky for another hour of the day (embeds and the trailer direct the sky live). */
+export function atHour(s: Sky, hour: number): Sky {
+  const p = sunPosition(skyClock(hour), s.lat, s.lon);
+  return { ...s, sunElev: p.elevation, sunAz: p.azimuth };
 }
