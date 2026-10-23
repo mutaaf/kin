@@ -273,6 +273,7 @@ def build_lids():
         if name == "Basis":
             continue
         k = o.shape_key_add(name=name, from_mix=False)
+        k.value = 0.0  # Blender 5 creates scripted keys at full strength; rest = neutral
         pts = lid_points("L", *pose) + lid_points("R", *pose)
         for i, p in enumerate(pts):
             k.data[i].co = p
@@ -343,6 +344,7 @@ def add_face_keys(o):
     keys["Ears_Relax"] = d
     for name, delta in keys.items():
         k = o.shape_key_add(name=name, from_mix=False)
+        k.value = 0.0
         k.data.foreach_set("co", (co + delta).astype(np.float32).ravel())
     return list(keys)
 
