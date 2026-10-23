@@ -1,0 +1,37 @@
+{
+  "name": "kin",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "up": "sh scripts/up.sh",
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test && vite build",
+    "build:native": "tsc --noEmit && vite build --mode native",
+    "ios": "npm run build:native && npx cap sync ios && npx cap open ios",
+    "ios:sim": "sh scripts/ios-sim.sh"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.5.3",
+    "@capacitor/status-bar": "^8.0.4",
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "@fontsource-variable/geist": "^5.3.0",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
+    "@types/three": "^0.186.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^4.1.11"
+  }
+}
