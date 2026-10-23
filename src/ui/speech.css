@@ -1,0 +1,124 @@
+/* Cinematic speech. Porcelain bubbles with real type; motion by personality.
+   Only transform/opacity/filter animate, so text stays crisp and off the main thread. */
+
+.sp-tails { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 6; overflow: visible; }
+.sp-tail { fill: rgba(250, 250, 247, 0.97); filter: drop-shadow(0 6px 10px rgba(5, 8, 12, 0.18)); transition: opacity 0.3s; }
+.sp-tail.sp-out { opacity: 0; }
+
+.sp {
+  --hue: 165;
+  --accent: hsl(var(--hue) 70% 42%);
+  position: fixed; left: 0; top: 0; z-index: 7; max-width: min(320px, 74vw); min-width: 64px;
+  padding: 12px 16px 13px; border-radius: 22px; background: rgba(250, 250, 247, 0.97); color: #151922;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 18px 40px -12px rgba(5, 8, 12, 0.38), 0 2px 6px rgba(5, 8, 12, 0.12);
+  font-family: var(--display); font-size: 17px; line-height: 1.32; font-variation-settings: 'SOFT' 100, 'WONK' 0;
+  letter-spacing: -0.005em; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased;
+  opacity: 0; will-change: transform; pointer-events: auto; cursor: pointer;
+  transition: opacity 0.28s ease, filter 0.3s ease, scale 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  scale: 0.86; transform-origin: 30% 100%;
+}
+.sp[data-side='right'] { transform-origin: 0% 60%; }
+.sp[data-side='left'] { transform-origin: 100% 60%; }
+.sp[data-side='below'] { transform-origin: 30% 0%; }
+.sp.sp-in { opacity: 1; scale: 1; }
+.sp.sp-out { opacity: 0; scale: 0.92; transition-duration: 0.3s; }
+.sp.sp-back { opacity: 0.88; scale: 0.95; filter: saturate(0.75) brightness(0.98); }
+
+.sp-text { margin: 0; overflow-wrap: anywhere; }
+.sp-w { white-space: pre; display: inline-block; }
+.sp-c { display: inline-block; white-space: pre; opacity: 0; animation: sp-fadeup 0.42s cubic-bezier(0.2, 0.9, 0.25, 1) var(--d) both; }
+.sp.sp-all .sp-c, .sp.sp-all .sp-w { animation-delay: 0ms !important; animation-duration: 0.12s !important; }
+.sp-em { color: var(--accent); font-weight: 700; font-variation-settings: 'SOFT' 100, 'WONK' 1; }
+
+/* Persona chip: who's talking, and who they're becoming. */
+.sp-chip { display: flex; align-items: center; gap: 6px; margin: -2px 0 5px; font: 600 9.5px/1 var(--ui); letter-spacing: 0.16em; text-transform: uppercase; color: #5b6170; }
+.sp-chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px hsl(var(--hue) 70% 50% / 0.18); }
+.sp-chip b { color: var(--accent); font-weight: 700; }
+.sp-chip span { font-weight: 500; }
+
+/* Thoughts: a cloud, italic, a softer ink, trailing puffs toward the head. */
+.sp-thought { border-radius: 30px; background: #fbfcff; font-style: italic; color: #262b38;
+  box-shadow: 0 18px 36px -14px rgba(5, 8, 12, 0.42), 0 2px 6px rgba(5, 8, 12, 0.1); }
+/* Cloud scallops along the top edge: two soft bumps in the bubble's own colour. */
+.sp-thought::before, .sp-thought::after { content: ''; position: absolute; z-index: -1; border-radius: 50%; background: inherit; }
+.sp-thought::before { width: 46px; height: 34px; top: -12px; left: 18%; }
+.sp-thought::after { width: 34px; height: 26px; top: -9px; right: 16%; }
+.sp-thought .sp-chip { color: #6a7184; }
+.sp-puff { position: absolute; left: 0; top: 0; width: 13px; height: 13px; margin: -6.5px 0 0 -6.5px; border-radius: 50%; background: #fbfcff;
+  box-shadow: 0 6px 12px -6px rgba(5, 8, 12, 0.4); }
+.sp-puff.b { width: 8px; height: 8px; margin: -4px 0 0 -4px; }
+
+/* ── Motion by personality ─────────────────────────────────────────────────────────────── */
+@keyframes sp-fadeup { from { opacity: 0; transform: translateY(0.35em); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
+
+/* Happy / pop star: letters bounce in. */
+@keyframes sp-bounce { 0% { opacity: 0; transform: translateY(0.6em) scale(0.6); } 55% { opacity: 1; transform: translateY(-0.22em) scale(1.12); } 100% { opacity: 1; transform: none; } }
+.sp-m-happy .sp-c, .sp-m-excited .sp-c { animation-name: sp-bounce; animation-duration: 0.5s; }
+
+/* Shy: small, a little wobble, lighter ink. */
+@keyframes sp-wobble { 0% { opacity: 0; transform: translateY(0.2em) rotate(-8deg); } 60% { opacity: 1; transform: rotate(5deg); } 100% { opacity: 1; transform: none; } }
+.sp-m-shy { font-size: 15px; color: #4a5162; }
+.sp-m-shy .sp-c { animation-name: sp-wobble; animation-duration: 0.6s; }
+
+/* Sleepy: slow, drooping in. */
+@keyframes sp-droop { from { opacity: 0; transform: translateY(-0.3em); filter: blur(1.5px); } to { opacity: 1; transform: none; filter: none; } }
+.sp-m-sleepy .sp-c { animation-name: sp-droop; animation-duration: 0.9s; }
+
+/* Brat: bold, whole words SLAM down; the bubble jolts when the last one lands. */
+.sp-brat { font-family: var(--ui); font-weight: 750; font-size: 17.5px; letter-spacing: -0.015em; border-radius: 18px 18px 18px 6px; }
+.sp-brat .sp-c { animation: none; opacity: 1; }
+.sp-brat .sp-w { opacity: 0; animation: sp-slam 0.32s cubic-bezier(0.2, 1.6, 0.4, 1) var(--wd) both; }
+@keyframes sp-slam { 0% { opacity: 0; transform: scale(2.1) translateY(-0.2em); filter: blur(5px); } 70% { opacity: 1; transform: scale(0.94); filter: none; } 100% { opacity: 1; transform: none; } }
+.sp-brat .sp-em { color: hsl(345 80% 52%); }
+
+/* Royal: an elegant serif drifts in, each letter from the left, unhurried. */
+.sp-royal { font-style: italic; font-weight: 450; font-size: 18px; font-variation-settings: 'SOFT' 0, 'WONK' 1, 'opsz' 72; letter-spacing: 0.005em;
+  background: linear-gradient(180deg, #fffdf6, #f8f1e2); box-shadow: 0 0 0 1px rgba(233, 175, 107, 0.45) inset, 0 18px 40px -12px rgba(60, 40, 10, 0.35); }
+.sp-royal .sp-c { animation: sp-drift 0.9s cubic-bezier(0.16, 1, 0.3, 1) var(--d) both; }
+@keyframes sp-drift { from { opacity: 0; transform: translateX(-0.4em); filter: blur(3px); } to { opacity: 1; transform: none; filter: none; } }
+.sp-royal .sp-em { color: hsl(40 75% 38%); }
+.sp-royal .sp-chip b { color: hsl(40 75% 38%); }
+
+/* Pop star: letters pop and catch the light. */
+.sp-popstar .sp-c { animation: sp-pop 0.5s cubic-bezier(0.3, 1.8, 0.5, 1) var(--d) both; }
+@keyframes sp-pop { 0% { opacity: 0; transform: scale(0.2) rotate(-12deg); } 100% { opacity: 1; transform: none; } }
+.sp-popstar .sp-em { background: linear-gradient(90deg, hsl(320 80% 55%), hsl(275 80% 60%), hsl(20 90% 58%), hsl(320 80% 55%)); background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; animation: sp-pop 0.5s cubic-bezier(0.3, 1.8, 0.5, 1) var(--d) both, sp-shimmer 2.4s linear var(--d) infinite; }
+@keyframes sp-shimmer { to { background-position: 300% 0; } }
+
+/* Scholar: typed out in mono with a caret. */
+.sp-scholar { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 14.5px; line-height: 1.45; letter-spacing: -0.01em; }
+.sp-scholar .sp-c { animation: sp-type 0.08s steps(1, jump-start) var(--d) both; }
+@keyframes sp-type { from { opacity: 0; } to { opacity: 1; } }
+.sp-scholar .sp-text::after { content: ''; display: inline-block; width: 0.5em; height: 1.05em; margin-left: 2px; vertical-align: -0.15em; background: var(--accent); animation: sp-caret 1s steps(1) infinite; }
+@keyframes sp-caret { 50% { opacity: 0; } }
+
+/* Gamer: glitch in, chunky and quick. */
+.sp-gamer { font-family: 'Geist Mono', ui-monospace, monospace; font-weight: 700; font-size: 14.5px; letter-spacing: 0.01em; border-radius: 10px; }
+.sp-gamer .sp-c { animation: sp-glitch 0.28s steps(3) var(--d) both; }
+@keyframes sp-glitch { 0% { opacity: 0; transform: translate(0.25em, -0.15em); color: hsl(265 90% 60%); } 50% { opacity: 1; transform: translate(-0.12em, 0.08em); color: hsl(185 90% 45%); } 100% { opacity: 1; transform: none; } }
+
+/* Athlete: italic, bold, swooshing in from the right like a scoreboard. */
+.sp-athlete { font-family: var(--ui); font-style: italic; font-weight: 700; letter-spacing: -0.01em; }
+.sp-athlete .sp-c { animation: sp-swoosh 0.36s cubic-bezier(0.2, 0.9, 0.2, 1) var(--d) both; }
+@keyframes sp-swoosh { from { opacity: 0; transform: translateX(0.8em) skewX(-14deg); } to { opacity: 1; transform: none; } }
+
+/* Explorer: rises like mist off a trail. */
+.sp-explorer .sp-c { animation: sp-fadeup 0.7s cubic-bezier(0.2, 0.9, 0.25, 1) var(--d) both; }
+
+/* Artist: each letter arrives in a colour, then settles to ink. */
+.sp-artist .sp-c { animation: sp-paint 0.9s ease var(--d) both; }
+@keyframes sp-paint { 0% { opacity: 0; color: hsl(calc(var(--k) * 37) 75% 55%); transform: translateY(0.2em); } 60% { opacity: 1; color: hsl(calc(var(--k) * 37) 75% 50%); } 100% { opacity: 1; color: inherit; transform: none; } }
+
+/* ── Subtitles (accessibility) and reduced motion ──────────────────────────────────────── */
+.sp-subs { position: fixed; left: 50%; bottom: calc(108px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 7;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; width: min(560px, calc(100vw - 24px)); pointer-events: none; }
+.sp-subs .sp { position: relative; transform: none !important; max-width: 100%; text-align: center; background: rgba(11, 13, 18, 0.82); color: #f6f6f3;
+  box-shadow: none; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); font-size: 16px; pointer-events: auto; }
+.sp-subs .sp-chip { justify-content: center; color: rgba(246, 246, 243, 0.7); }
+.sp-subs .sp-puff { display: none; }
+.sp-calm .sp-c, .sp-calm .sp-w { animation: none !important; opacity: 1 !important; }
+.sp-calm.sp-scholar .sp-text::after { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .sp-c, .sp-w { animation: none !important; opacity: 1 !important; }
+}
