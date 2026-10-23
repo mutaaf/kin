@@ -5,7 +5,6 @@ import type { KinRecord } from '../core/creature';
 import { temperament } from '../core/genome';
 import type { PeerInfo, VisitorSnapshot } from '../protocol/messages';
 import type { Settings } from '../persistence/store';
-import { sharedScreen } from '../render/choreo';
 
 export const swatch = (hue: number, light = 70) =>
   `background: radial-gradient(circle at 35% 30%, hsl(${hue} 70% ${light + 12}%), hsl(${hue} 55% ${light - 8}%))`;
@@ -78,6 +77,23 @@ export class Hud {
     el.classList.add('on');
     clearTimeout(this.toastTimer);
     this.toastTimer = window.setTimeout(() => el.classList.remove('on'), ms);
+  }
+
+  /** A soft light along the edge where another screen is: seeking, linked, or a crossing. */
+  seam(edge: 'left' | 'right', state: 'seeking' | 'linked' | 'crossing' | 'off') {
+    let el = document.getElementById('seam-' + edge);
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'seam-' + edge;
+      el.className = 'seam ' + edge;
+      el.setAttribute('aria-hidden', 'true');
+      $('hud').prepend(el);
+    }
+    el.dataset.state = state;
+    if (state === 'linked' || state === 'crossing') {
+      clearTimeout(Number(el.dataset.t));
+      el.dataset.t = String(window.setTimeout(() => (el!.dataset.state = 'off'), state === 'linked' ? 2600 : 1800));
+    }
   }
 
   debug(text: string) {
@@ -201,10 +217,10 @@ export class Hud {
       void mine;
       el.innerHTML = `
         <h2>Gather</h2>
-        <p class="sub">KIN on nearby screens. Put two windows side by side (or two phones edge to edge) and send ${esc(k.name)} across.</p>
+        <p class="sub">Phones or tablets side by side? <b>Slide one finger off this screen and onto the other.</b> That links them, with no codes and nothing to scan. Windows on this computer find each other automatically.</p>
         ${peers.length ? peers.map((p) => `
           <div class="peer"><span class="swatch" style="${swatch(p.hue)}"></span>
-            <div class="meta"><div class="n">${esc(p.name)}</div><div class="d">${esc(p.temperament)} · ${p.open ? (sharedScreen(p.rect, p.rect) ? 'next window' : 'nearby') : 'away right now'}</div></div>
+            <div class="meta"><div class="n">${esc(p.name)}</div><div class="d">${esc(p.temperament)} · ${p.open ? (p.rect?.fine ? 'next window' : 'linked screen') : 'away right now'}</div></div>
             <button class="btn primary" data-visit="${esc(p.peer)}" ${p.open && canVisit ? '' : 'disabled'}>Visit</button></div>`).join('')
           : `<p class="sub" style="margin:6px 0 2px">Nobody nearby yet.</p>`}
         <div class="row" style="margin-top:12px"><button class="btn" data-friend>Open a friend window</button></div>
@@ -212,7 +228,7 @@ export class Hud {
         <div class="seg" role="group" aria-label="Who can visit">
           ${(['ask', 'auto', 'off'] as const).map((m) => `<button data-visits="${m}" aria-pressed="${this.b.settings.visits === m}">${{ ask: 'Ask me', auto: 'Anyone nearby', off: 'Nobody' }[m]}</button>`).join('')}
         </div>
-        <p class="sub" style="margin-top:12px">Same device for now: phone-to-phone over Wi-Fi arrives next.</p>`;
+`;
       el.querySelectorAll<HTMLButtonElement>('[data-visit]').forEach((b) => b.addEventListener('click', () => this.b.visit(b.dataset.visit!)));
       el.querySelector('[data-friend]')!.addEventListener('click', () => this.b.openFriendWindow());
       el.querySelectorAll<HTMLButtonElement>('[data-visits]').forEach((b) =>

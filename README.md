@@ -7,6 +7,12 @@ screen onto a friend's. Web, iPhone and iPad from one codebase.
 > back at you, hops across, and lands on the other screen, where that KIN reacts in its own way.
 > Call it home and it comes back with a memory.
 
+**Live:** https://mutaafaziz.com/kin/ · iPhone/iPad via TestFlight (`npm run testflight`, see docs/TESTFLIGHT.md)
+
+### Link two devices (no codes, nothing to scan)
+Open KIN on both, put them side by side, and **slide one finger off one screen onto the other**.
+They link, the edge glows, and Gather → Visit sends your KIN across.
+
 ## Run it
 ```sh
 npm run up         # install if needed, typecheck, run tests, start http://localhost:5188/kin/
@@ -36,7 +42,9 @@ is next. Engineering principles: `docs/ENGINEERING.md`. Original vision: `docs/b
 src/core        creature, genome, utility-AI brain (pure, no DOM)
 src/protocol    versioned envelope + validation
 src/session     KIN CROSS state machines (pure) + session shell (presence, clock sync)
-src/transport   BroadcastChannel today; relay/WebRTC/native next
+src/transport   BroadcastChannel + WebSocket relay (merged, de-duplicated)
+src/stitch      invisible pairing: gesture detector + matcher (shared with the Worker)
+src/worker      Cloudflare Worker + Lobby Durable Object (relay)
 src/env         live sky: sun position, weather, coarse/precise location
 src/render      three.js stage, procedural creature, animation, crossing choreography
 src/ui          HUD; src/audio synthesized sfx; src/platform native haptics/status bar

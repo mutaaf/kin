@@ -5,7 +5,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'com.mutaafaziz.kin',
   appName: 'KIN',
-  webDir: 'dist/native',
+  webDir: 'native-dist',
   backgroundColor: '#0B0D12',
   ios: { contentInset: 'never', backgroundColor: '#0B0D12', scrollEnabled: false, limitsNavigationsToAppBoundDomains: false },
 };

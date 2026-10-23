@@ -17,8 +17,10 @@ import { Stage } from './render/stage';
 import { T, opposite, type Guest, type HostFx, type OwnerFx } from './session/cross';
 import { Session } from './session/session';
 import { BroadcastTransport } from './transport/transport';
+import { MultiTransport, RelayTransport, relayUrl } from './transport/relay';
+import { watchStitch } from './stitch/gesture';
 import { Hud } from './ui/hud';
-import { initNative, setHaptics, tap } from './platform/native';
+import { initNative, isNative, setHaptics, tap } from './platform/native';
 
 interface GuestView {
   view: KinView;
@@ -56,7 +58,17 @@ export async function startApp(slot: string) {
   const view = new KinView(genome, stage);
   const guests = new Map<string, GuestView>();
   const hud = new Hud();
-  const peerId = 'p_' + slot;
+  // Peer ids must be unique across devices (every phone's first home is slot "home").
+  let device = kv.get('kin:device');
+  if (!device) {
+    device = randomId('d').slice(2, 12);
+    kv.set('kin:device', device);
+  }
+  const peerId = `${device}-${slot}`;
+  /** Seam calibration from the stitch gesture: which edge touches the peer, and its vertical offset. */
+  const seams = new Map<string, { edge: Edge; offsetY: number }>();
+  const edgeTo = (peer: string, rect: ScreenRect | null): Edge => seams.get(peer)?.edge ?? facingEdge(myRect(), rect);
+  const relay = new RelayTransport(peerId, relayUrl(isNative));
 
   // ── Sky: render immediately with a sensible default, then follow the real one.
   let sky: Sky = {
@@ -96,7 +108,7 @@ export async function startApp(slot: string) {
   });
   const visitor = (): VisitorSnapshot => ({ kinId: kin.id, seed: kin.seed, name: kin.name, traits: kin.traits, hue: genome.hue });
 
-  const session = new Session(peerId, new BroadcastTransport(peerId), info, visitor, {
+  const session = new Session(peerId, new MultiTransport([new BroadcastTransport(peerId), relay]), info, visitor, {
     mode: () => settings.visits,
     capacity: 3,
     open: () => kin.placement.kind === 'home' && kin.hatched,
@@ -115,7 +127,7 @@ export async function startApp(slot: string) {
   const ctx = (): Context => {
     const firstGuest = [...guests.values()].find((g) => g.hosting);
     let peerEdge: Edge | null = null;
-    if (askingPeer) peerEdge = facingEdge(myRect(), session.peers.get(askingPeer)?.info.rect ?? null);
+    if (askingPeer) peerEdge = edgeTo(askingPeer, session.peers.get(askingPeer)?.info.rect ?? null);
     return {
       now: Date.now(), weather: sky, petting: view.petting > 0.2, peerEdge,
       guest: firstGuest ? { id: firstGuest.visitor.kinId, name: firstGuest.visitor.name } : null,
@@ -168,7 +180,8 @@ export async function startApp(slot: string) {
   const hopFor = (peer: string, edge: Edge, fromLocal: { x: number; y: number }): { hop: Hop; mine: ReturnType<typeof layout>['src'] } => {
     const mine = myRect();
     const theirs = session.peers.get(peer)?.info.rect ?? guessRect(mine);
-    return { hop: crossingHop(mine, theirs, edge, fromLocal), mine: layout(mine, theirs, edge).src };
+    const dy = seams.get(peer)?.offsetY;
+    return { hop: crossingHop(mine, theirs, edge, fromLocal, dy), mine: layout(mine, theirs, edge, dy).src };
   };
 
   session.onOwnerFx = (fx: OwnerFx) => {
@@ -184,6 +197,7 @@ export async function startApp(slot: string) {
       case 'hop_out': {
         const { hop, mine } = hopFor(fx.peer, fx.edge, fx.seam.from);
         sfx.portal();
+        hud.seam(fx.edge as 'left' | 'right', 'crossing');
         if (settings.reducedMotion) view.script([{ dur: 0, at: fx.at }, view.fade(true, 400)]);
         else view.script(view.hopTask(hop, mine, fx.at, T.HOP, 'out'));
         setTimeout(() => sfx.chirp(1.1), Math.max(0, fx.at - Date.now()));
@@ -220,7 +234,7 @@ export async function startApp(slot: string) {
         const p = kin.placement.kind === 'away' ? session.peers.get(kin.placement.hostPeer) : undefined;
         const mine = myRect();
         const theirs = p?.info.rect ?? guessRect(mine);
-        const L = layout(mine, theirs, fx.edge);
+        const L = layout(mine, theirs, fx.edge, kin.placement.kind === 'away' ? seams.get(kin.placement.hostPeer)?.offsetY : undefined);
         const entry = opposite(fx.edge);
         // Leave from where we landed over there; arrive on our side a little in from the edge.
         const from = landing(L.dst, entry, L.dst.y + L.dst.h * 0.62);
@@ -290,8 +304,11 @@ export async function startApp(slot: string) {
         const mine = myRect();
         const srcRect = fx.seam.rect ?? owner?.info.rect ?? guessRect(mine);
         const srcEdge = opposite(fx.edge);
-        const hop = crossingHop(srcRect, mine, srcEdge, fx.seam.from);
-        const L = layout(srcRect, mine, srcEdge);
+        const cal = seams.get(ownerPeer);
+        const dyMine = cal ? -cal.offsetY : undefined; // my top relative to the source's
+        const hop = crossingHop(srcRect, mine, srcEdge, fx.seam.from, dyMine);
+        const L = layout(srcRect, mine, srcEdge, dyMine);
+        hud.seam(fx.edge as 'left' | 'right', 'crossing');
         const gv = new KinView(makeGenome(fx.visitor.seed), stage);
         gv.placeAt(stage.edgeX(fx.edge as 'left' | 'right', 0.2, 1.4), 0.2);
         gv.visible = false;
@@ -343,7 +360,8 @@ export async function startApp(slot: string) {
         const mine = myRect();
         const ownerRect = session.peers.get(g.owner)?.info.rect ?? guessRect(mine);
         const ownerEdge = opposite(fx.edge);
-        const L = layout(ownerRect, mine, ownerEdge);
+        const oc = seams.get(g.owner);
+        const L = layout(ownerRect, mine, ownerEdge, oc ? -oc.offsetY : undefined);
         const from = toGlobal(stage.toScreen(g.view.pos), L.dst);
         const to = landing(L.src, ownerEdge, L.src.y + L.src.h * 0.6);
         const hop: Hop = { from, to, peak: Math.min(1.6, 0.55 + Math.abs(to.x - from.x) / 900) };
@@ -383,6 +401,41 @@ export async function startApp(slot: string) {
 
   session.onPeers = () => hud.refreshGather();
   session.start();
+
+  // ── Stitch: slide one finger from this screen onto the next one. Invisible pairing that also
+  // calibrates the seam. The relay connects only when someone makes the gesture.
+  relay.onPaired = (p) => {
+    seams.set(p.peer, { edge: p.edge, offsetY: p.offsetY });
+    stage.matchPhysical(true);
+    sfx.chime();
+    tap('medium');
+    hud.seam(p.edge, 'linked');
+    hud.status('');
+    hud.toast('Screens linked. Your KIN can see the other world now.');
+    session.hello(false);
+    if (kin.placement.kind === 'home' && !view.busy) {
+      view.script([{ dur: 1200, enter: () => ((view.look = toWorldEdge(p.edge)), (view.mood = 'surprised'), view.earFlick(1.6)) }]);
+    }
+  };
+  relay.onMiss = () => {
+    hud.status('');
+    hud.toast('Two pairs swiped at once — try that again.');
+  };
+  relay.onPeerLeft = (peer) => {
+    seams.delete(peer);
+    session.peers.delete(peer);
+    hud.refreshGather();
+    if (!seams.size) stage.matchPhysical(false);
+  };
+  let stitchTimer = 0;
+  watchStitch(stage.renderer.domElement, (h) => {
+    if (!kin.hatched) return;
+    relay.stitch(h.dir, h.edge, h.y, performance.now() - h.at, h.v);
+    hud.seam(h.edge, 'seeking');
+    hud.status(h.dir === 'out' ? 'Reaching for the next screen…' : 'Something’s coming through…');
+    clearTimeout(stitchTimer);
+    stitchTimer = window.setTimeout(() => !relay.room && (hud.status(''), hud.seam(h.edge, 'off')), 2200);
+  });
   setInterval(() => {
     const r = JSON.stringify(myRect());
     if (r !== lastRect) {
@@ -396,7 +449,7 @@ export async function startApp(slot: string) {
     if (kin.placement.kind !== 'home' || session.owner.phase !== 'home' || pendingVisit) return;
     const p = session.peers.get(peer);
     if (!p?.info.open) return;
-    const edge = facingEdge(myRect(), p.info.rect);
+    const edge = edgeTo(peer, p.info.rect);
     pendingVisit = { peer, edge };
     hud.closeSheet();
     hud.status(`${kin.name} spots ${p.info.name}…`);
@@ -476,9 +529,10 @@ export async function startApp(slot: string) {
       hud.hint('');
       const c = cocoon;
       cocoon = null;
-      let k = 0;
+      const t0 = performance.now();
       const pop = () => {
-        k += 1 / 30;
+        // Time-based, not frame-based: a slow device must never leave the shell behind.
+        const k = Math.min(1, (performance.now() - t0) / 500);
         c.scale.setScalar(Math.max(0, 1 - k) * 1.15);
         (c.material as THREE.MeshPhysicalMaterial).opacity = 1 - k;
         if (k < 1) requestAnimationFrame(pop);

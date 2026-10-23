@@ -4,3 +4,6 @@ dist
 *.log
 .wrangler
 ios/build
+native-dist
+.env.testflight
+*.p8

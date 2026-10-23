@@ -1,0 +1,16 @@
+{
+  // KIN: static assets under mutaafaziz.com/kin/ plus the stitch-pairing relay (Lobby DO).
+  // The route takes precedence over the mutaafaziz.com Custom Domain (the personal site).
+  "name": "kin",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  // No preview URLs: each preview of a Worker with Durable Objects creates its own namespaces,
+  // which is how outatime-88 hit the 100-namespace Free-plan cap (2026-10-22).
+  "preview_urls": false,
+  "main": "src/worker/index.ts",
+  "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": ["/kin/api/*"] },
+  "durable_objects": { "bindings": [{ "name": "LOBBY", "class_name": "Lobby" }] },
+  // SQLite-backed classes are the kind the Workers Free plan supports.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Lobby"] }],
+  "routes": [{ "pattern": "mutaafaziz.com/kin*", "zone_name": "mutaafaziz.com" }]
+}

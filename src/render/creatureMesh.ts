@@ -33,8 +33,22 @@ export function buildCreature(g: Genome): CreatureParts {
   const mat = <T extends THREE.Material>(x: T) => (mats.push(x), x);
 
   const furColor = hsl(g.hue, g.sat, g.light);
-  const plush = (c: THREE.Color, sheen: THREE.Color) =>
-    mat(new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.78, sheen: 1, sheenRoughness: 0.42, sheenColor: sheen }));
+  // Plush: sheen for velvet, plus a soft fresnel rim so the silhouette glows against any sky
+  // (the crisp edge that separates a premium character from a primitive).
+  const rimColor = hsl(g.hue, 0.5, 0.92);
+  const plush = (c: THREE.Color, sheen: THREE.Color) => {
+    const m = mat(new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.78, sheen: 1, sheenRoughness: 0.42, sheenColor: sheen }));
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uRim = { value: rimColor };
+      sh.fragmentShader = 'uniform vec3 uRim;\n' + sh.fragmentShader.replace(
+        '#include <dithering_fragment>',
+        `#include <dithering_fragment>
+         float rim = pow(1.0 - clamp(dot(normalize(vNormal), normalize(vViewPosition)), 0.0, 1.0), 2.6);
+         gl_FragColor.rgb += uRim * rim * 0.32;`,
+      );
+    };
+    return m;
+  };
   const fur = plush(furColor, hsl(g.hue, g.sat * 0.6, Math.min(0.95, g.light + 0.2)));
   const belly = plush(hsl(g.hue, g.sat * 0.5, Math.min(0.93, g.light + 0.16)), new THREE.Color('#fff7ee'));
   const inner = plush(hsl(g.accentHue, 0.55, 0.78), hsl(g.accentHue, 0.6, 0.9));
@@ -42,8 +56,8 @@ export function buildCreature(g: Genome): CreatureParts {
   const white = mat(new THREE.MeshBasicMaterial({ color: '#ffffff' }));
   const blush = mat(new THREE.MeshBasicMaterial({ color: hsl(350, 0.8, 0.72), transparent: true, opacity: 0.45, depthWrite: false }));
 
-  const sphere = geo(new THREE.SphereGeometry(1, 40, 28));
-  const lowSphere = geo(new THREE.SphereGeometry(1, 20, 14));
+  const sphere = geo(new THREE.SphereGeometry(1, 64, 48));
+  const lowSphere = geo(new THREE.SphereGeometry(1, 32, 24));
   const S = g.size;
 
   const root = new THREE.Group();
@@ -60,7 +74,7 @@ export function buildCreature(g: Genome): CreatureParts {
   squash.add(body, tummy);
 
   // Legs: stubby, paddle during hops.
-  const legGeo = geo(new THREE.CapsuleGeometry(0.065, 0.07, 6, 12));
+  const legGeo = geo(new THREE.CapsuleGeometry(0.065, 0.07, 12, 24));
   const legs: THREE.Mesh[] = [];
   for (const [x, z] of [[-0.14, 0.11], [0.14, 0.11], [-0.13, -0.12], [0.13, -0.12]] as const) {
     const l = new THREE.Mesh(legGeo, fur);
@@ -81,7 +95,7 @@ export function buildCreature(g: Genome): CreatureParts {
       tail.add(s);
     });
   } else if (g.tail === 'curl') {
-    const t = new THREE.Mesh(geo(new THREE.TorusGeometry(0.1, 0.045, 12, 24, Math.PI * 1.6)), fur);
+    const t = new THREE.Mesh(geo(new THREE.TorusGeometry(0.1, 0.045, 24, 48, Math.PI * 1.6)), fur);
     t.rotation.set(0, Math.PI / 2, 0);
     t.position.set(0, 0.1, -0.06);
     tail.add(t);
@@ -141,13 +155,13 @@ export function buildCreature(g: Genome): CreatureParts {
   nose.scale.set(0.03, 0.022, 0.02);
   nose.position.set(0, 0.145, 0.345);
   head.add(nose);
-  const mouth = new THREE.Mesh(geo(new THREE.TorusGeometry(0.03, 0.008, 6, 16, Math.PI)), dark);
+  const mouth = new THREE.Mesh(geo(new THREE.TorusGeometry(0.03, 0.008, 12, 32, Math.PI)), dark);
   mouth.rotation.z = Math.PI;
   mouth.position.set(0, 0.105, 0.343);
   head.add(mouth);
   const cheeks: THREE.Mesh[] = [];
   for (const side of [-1, 1]) {
-    const c = new THREE.Mesh(geo(new THREE.CircleGeometry(0.045, 20)), blush);
+    const c = new THREE.Mesh(geo(new THREE.CircleGeometry(0.045, 40)), blush);
     c.position.set(side * 0.215, 0.12, 0.262);
     c.rotation.y = side * 0.62;
     head.add(c);
@@ -164,8 +178,8 @@ export function buildCreature(g: Genome): CreatureParts {
     const innerM = new THREE.Mesh();
     if (g.ears === 'pointed' || g.ears === 'tuft') {
       const h = g.ears === 'tuft' ? 0.2 : 0.27;
-      outer.geometry = geo(new THREE.ConeGeometry(0.11, h, 20));
-      innerM.geometry = geo(new THREE.ConeGeometry(0.065, h * 0.75, 16));
+      outer.geometry = geo(new THREE.ConeGeometry(0.11, h, 40));
+      innerM.geometry = geo(new THREE.ConeGeometry(0.065, h * 0.75, 32));
       outer.position.y = h / 2;
       innerM.position.set(0, h * 0.42, 0.045);
       if (g.ears === 'tuft') {

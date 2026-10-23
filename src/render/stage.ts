@@ -84,7 +84,7 @@ export class Stage {
   readonly camera = new THREE.OrthographicCamera();
   readonly world = new THREE.Group();
   /** CSS px per world unit. */
-  px = 110;
+  px = 0;
   w = 1;
   h = 1;
   private sun = new THREE.DirectionalLight('#fff', 2);
@@ -117,7 +117,7 @@ export class Stage {
 
   constructor(private host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+    this.renderer.setPixelRatio(this.ratio);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
@@ -132,14 +132,17 @@ export class Stage {
 
     this.scene.add(this.world, this.hemi, this.sun, this.sun.target, this.fill);
     this.fill.position.set(0.5, 4, 10);
-    this.scene.fog = new THREE.Fog('#F6F6F3', 21, 26);
+    this.scene.fog = new THREE.Fog('#F6F6F3', 20, 24.6);
 
     // Ground: a wide band that fades into the horizon fog at the back.
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(90, 26), this.groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.z = 9.5;
     this.world.add(ground);
-    const moss = new THREE.Mesh(new THREE.CircleGeometry(2.3, 64), this.mossMat);
+    this.mossMat.transparent = true;
+    this.mossMat.alphaMap = radialTexture();
+    this.mossMat.depthWrite = false;
+    const moss = new THREE.Mesh(new THREE.CircleGeometry(2.6, 96), this.mossMat);
     moss.rotation.x = -Math.PI / 2;
     moss.scale.set(1.25, 0.62, 1);
     moss.position.set(0, 0.004, -0.1);
@@ -163,11 +166,11 @@ export class Stage {
     };
     // A tapered, slightly bent blade with a darker base (vertex colours).
     const blade = new THREE.BufferGeometry();
-    blade.setAttribute('position', new THREE.Float32BufferAttribute([-0.018, 0, 0, 0.018, 0, 0, -0.01, 0.075, 0.006, 0.01, 0.075, 0.006, 0.0, 0.16, 0.02], 3));
+    blade.setAttribute('position', new THREE.Float32BufferAttribute([-0.011, 0, 0, 0.011, 0, 0, -0.006, 0.07, 0.008, 0.006, 0.07, 0.008, 0.0, 0.15, 0.024], 3));
     blade.setAttribute('color', new THREE.Float32BufferAttribute([0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 1.15, 1.15, 1.15], 3));
     blade.setIndex([0, 1, 2, 1, 3, 2, 2, 3, 4]);
     blade.computeVertexNormals();
-    const N = 1400;
+    const N = 2600;
     const grass = new THREE.InstancedMesh(blade, this.grassMat, N);
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
@@ -177,7 +180,7 @@ export class Stage {
       const z = -2.8 + r() * 9;
       // keep the creature's lawn readable: sparser near the centre
       // keep the lawn readable: sparse in the middle, tufts toward the edges and the back
-      const s = Math.hypot(x / 1.3, z / 0.8) < 1.6 ? 0.45 + r() * 0.4 : 0.8 + r() * 1.1;
+      const s = Math.hypot(x / 1.3, z / 0.8) < 1.6 ? 0.4 + r() * 0.35 : 0.65 + r() * 0.6;
       q.setFromEuler(new THREE.Euler((r() - 0.5) * 0.3, r() * Math.PI, (r() - 0.5) * 0.3));
       m.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(s, s * (0.8 + r() * 0.7), s));
       grass.setMatrixAt(i, m);
@@ -220,9 +223,13 @@ export class Stage {
 
     // Mushroom shelter (the "shelter" anchor): porcelain cap with amber freckles.
     const mush = new THREE.Group();
-    const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.15, 0.55, 20), porcelain);
+    const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.15, 0.55, 48), porcelain);
+    const gills = new THREE.Mesh(new THREE.CircleGeometry(0.6, 64), new THREE.MeshStandardMaterial({ color: '#CDBFA9', roughness: 0.9, side: THREE.DoubleSide }));
+    gills.rotation.x = Math.PI / 2;
+    gills.position.y = 0.515;
+    mush.add(gills);
     stalk.position.y = 0.27;
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.62, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#E7DCCB', roughness: 0.5 }));
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.62, 96, 32, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#E7DCCB', roughness: 0.5 }));
     cap.scale.set(1, 0.55, 1);
     cap.position.y = 0.52;
     mush.add(stalk, cap);
@@ -255,7 +262,7 @@ export class Stage {
     this.world.add(plant, this.plantLight);
 
     // Nest: a soft woven ring to sleep in.
-    const nest = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.11, 14, 40), new THREE.MeshStandardMaterial({ color: '#C9A27A', roughness: 0.95 }));
+    const nest = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.11, 32, 96), new THREE.MeshStandardMaterial({ color: '#C9A27A', roughness: 0.95 }));
     nest.rotation.x = -Math.PI / 2;
     nest.scale.set(1, 0.8, 0.8);
     nest.position.set(this.anchors.nest.x, 0.07, this.anchors.nest.z);
@@ -268,25 +275,60 @@ export class Stage {
     // A few pebbles for scale.
     const peb = new THREE.MeshStandardMaterial({ color: '#D8D4CC', roughness: 0.8 });
     for (let i = 0; i < 6; i++) {
-      const p = new THREE.Mesh(new THREE.SphereGeometry(0.05 + r() * 0.05, 12, 8), peb);
+      const p = new THREE.Mesh(new THREE.SphereGeometry(0.05 + r() * 0.05, 32, 16), peb);
       p.scale.y = 0.5;
       p.position.set(-2.4 + r() * 4.8, 0.02, 0.6 + r() * 0.8);
       this.world.add(p);
     }
   }
 
+  /** Comfortable solo scale for this screen. */
+  private soloPx() {
+    const coarse = matchMedia('(pointer: coarse)').matches;
+    // Phones: a constant scale, so the KIN is the same physical size on any phone.
+    // Desktop: derived from the screen, so every window on a display agrees.
+    // Tablets show more habitat AND a larger creature.
+    const tablet = coarse && Math.min(this.w, this.h) >= 700;
+    return coarse ? (tablet ? 165 : 118) : Math.max(100, Math.min(170, screen.height / 6.2));
+  }
+
+  /**
+   * When linked to another device, ease to a shared *physical* size (~19 mm per world unit) so a
+   * KIN doesn't grow or shrink as it crosses from a phone to an iPad. CSS px are ~0.157 mm on
+   * iPhone, ~0.16 on Android phones, ~0.19 on iPad.
+   */
+  matchPhysical(on: boolean) {
+    const coarse = matchMedia('(pointer: coarse)').matches;
+    this.physical = on && coarse;
+    if (!this.physical) {
+      this.pxTarget = this.soloPx();
+      return;
+    }
+    const tablet = Math.min(this.w, this.h) >= 700;
+    const ipadOS = /iPad|Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
+    const mmPerPx = tablet ? (ipadOS ? 0.19 : 0.17) : /iPhone/.test(navigator.userAgent) ? 0.157 : 0.16;
+    this.pxTarget = 19 / mmPerPx;
+  }
+  private physical = false;
+  private pxTarget = 0;
+
   resize() {
     const w = this.host.clientWidth || innerWidth;
     const h = this.host.clientHeight || innerHeight;
     this.w = w;
     this.h = h;
-    const coarse = matchMedia('(pointer: coarse)').matches;
-    // Phones: a constant scale, so the KIN is the same physical size on any phone.
-    // Desktop: derived from the screen, so every window on a display agrees.
-    // Tablets show more habitat AND a larger creature (CREATIVE_DIRECTION: big screens expand
-    // the world, they don't just magnify the UI).
-    const tablet = coarse && Math.min(w, h) >= 700;
-    this.px = coarse ? (tablet ? 165 : 118) : Math.max(100, Math.min(170, screen.height / 6.2));
+    if (!this.physical) this.pxTarget = this.soloPx();
+    if (!this.px || Math.abs(this.px - this.pxTarget) > 60) this.px = this.pxTarget;
+    this.renderer.setSize(w, h, false);
+    this.renderer.domElement.style.width = w + 'px';
+    this.renderer.domElement.style.height = h + 'px';
+    this.frame();
+  }
+
+  /** Camera framing for the current scale. Cheap; runs every frame while the scale eases. */
+  private frame() {
+    const w = this.w;
+    const h = this.h;
     const hw = w / 2 / this.px;
     const hh = h / 2 / this.px;
     Object.assign(this.camera, { left: -hw, right: hw, top: hh, bottom: -hh, near: 0.1, far: 60 });
@@ -294,9 +336,6 @@ export class Stage {
     this.camera.position.set(0, target.y + Math.sin(TILT) * 20, Math.cos(TILT) * 20);
     this.camera.lookAt(target);
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(w, h, false);
-    this.renderer.domElement.style.width = w + 'px';
-    this.renderer.domElement.style.height = h + 'px';
     this.layoutSky();
   }
 
@@ -325,7 +364,7 @@ export class Stage {
     this.sky = s;
     const p = palette(s);
     this.pal = p;
-    this.skyEl.style.background = `linear-gradient(180deg, ${p.top} 0%, ${p.mid} 55%, ${p.horizon} 100%)`;
+    this.skyEl.style.background = this.skyGradient();
     this.starsEl.style.opacity = String(Math.max(0, p.night - 0.35) * (1 - s.cloud * 0.9));
     (this.scene.fog as THREE.Fog).color.set(p.horizon);
     this.groundMat.color.copy(p.ground);
@@ -353,8 +392,16 @@ export class Stage {
     return this.pal?.glow ?? 0.5;
   }
 
+  /** The horizon colour lands exactly where the meadow fades out, so there is no seam line. */
+  private skyGradient() {
+    const p = this.pal!;
+    const hy = Math.max(40, this.toScreen(new THREE.Vector3(0, 0, -3.4)).y);
+    return `linear-gradient(180deg, ${p.top} 0px, ${p.mid} ${Math.round(hy * 0.62)}px, ${p.horizon} ${Math.round(hy)}px, ${p.horizon} 100%)`;
+  }
+
   private layoutSky() {
     if (!this.sky) return;
+    if (this.pal) this.skyEl.style.background = this.skyGradient();
     const s = this.sky;
     const horizonY = this.toScreen(new THREE.Vector3(0, 0, -3.4)).y;
     const night = s.sunElev < -4;
@@ -385,6 +432,10 @@ export class Stage {
 
   update(dt: number, t: number) {
     this.grassU.uTime.value = t;
+    if (this.pxTarget && Math.abs(this.px - this.pxTarget) > 0.3) {
+      this.px += (this.pxTarget - this.px) * Math.min(1, dt * 2.5);
+      this.frame();
+    }
     const s = this.sky;
     if (!s) return;
     const wet = s.precipMm > 0.1;
@@ -462,7 +513,7 @@ export class Stage {
    * Resolution governor. Measure, then degrade gracefully: if frames run long, render fewer
    * pixels before dropping frames (the creature's motion matters more than its edge crispness).
    */
-  private ratio = Math.min(2, devicePixelRatio || 1);
+  private ratio = Math.min(Math.min(innerWidth, innerHeight) < 600 ? 3 : 2, devicePixelRatio || 1);
   private slow = 0;
   govern(dt: number) {
     this.slow = dt > 1 / 45 ? this.slow + dt : Math.max(0, this.slow - dt * 0.5);
@@ -477,6 +528,20 @@ export class Stage {
   render() {
     this.renderer.render(this.scene, this.camera);
   }
+}
+
+/** Soft radial falloff, so the garden melts into the meadow instead of ending at a hard edge. */
+function radialTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d')!;
+  const grd = g.createRadialGradient(128, 128, 30, 128, 128, 128);
+  grd.addColorStop(0, '#fff');
+  grd.addColorStop(0.62, '#fff');
+  grd.addColorStop(1, '#000');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 256, 256);
+  return new THREE.CanvasTexture(c);
 }
 
 function el(tag: string, cls: string) {

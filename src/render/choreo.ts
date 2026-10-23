@@ -36,11 +36,15 @@ export function facingEdge(src: ScreenRect | null, dst: ScreenRect | null): Edge
   return dst!.x + dst!.w / 2 >= src!.x + src!.w / 2 ? 'right' : 'left';
 }
 
-/** Place both windows in one global space. Deterministic: both peers compute the same answer. */
-export function layout(src: ScreenRect, dst: ScreenRect, edge: Edge): { src: Rect; dst: Rect } {
+/**
+ * Place both windows in one global space. Deterministic: both peers compute the same answer.
+ * `dstOffsetY` (dst top − src top, CSS px) comes from the stitch gesture when the screens were
+ * calibrated; without it, phones are assumed vertically centred on each other.
+ */
+export function layout(src: ScreenRect, dst: ScreenRect, edge: Edge, dstOffsetY?: number): { src: Rect; dst: Rect } {
   if (sharedScreen(src, dst)) return { src: rectOf(src), dst: rectOf(dst) };
   const s: Rect = { x: 0, y: 0, w: src.w, h: src.h };
-  const y = (src.h - dst.h) / 2;
+  const y = dstOffsetY ?? (src.h - dst.h) / 2;
   const d: Rect = edge === 'left' ? { x: -BEZEL_PX - dst.w, y, w: dst.w, h: dst.h } : { x: src.w + BEZEL_PX, y, w: dst.w, h: dst.h };
   return { src: s, dst: d };
 }
@@ -81,8 +85,8 @@ export const toLocal = (p: Pt, r: Rect): Pt => ({ x: p.x - r.x, y: p.y - r.y });
 export const toGlobal = (p: Pt, r: Rect): Pt => ({ x: p.x + r.x, y: p.y + r.y });
 
 /** The crossing hop from the source's start point to the destination landing, in global px. */
-export function crossingHop(src: ScreenRect, dst: ScreenRect, edge: Edge, fromLocal: Pt): Hop {
-  const L = layout(src, dst, edge);
+export function crossingHop(src: ScreenRect, dst: ScreenRect, edge: Edge, fromLocal: Pt, dstOffsetY?: number): Hop {
+  const L = layout(src, dst, edge, dstOffsetY);
   const from = toGlobal(fromLocal, L.src);
   const entry: Edge = edge === 'right' ? 'left' : 'right';
   const to = landing(L.dst, entry, from.y);
