@@ -27,11 +27,15 @@ VERSION=$(node -p "require('./package.json').version")
 npm run check
 npm run build:native
 npx cap sync ios
+# The Live Activity extension (KINWidgets) must exist in the project; idempotent.
+sh scripts/ios-add-widget.sh
 
 AUTH="-allowProvisioningUpdates -authenticationKeyPath $ASC_KEY_PATH -authenticationKeyID $ASC_KEY_ID -authenticationKeyIssuerID $ASC_ISSUER_ID"
 ARCHIVE=ios/build/KIN-$BUILD.xcarchive
 
-# Automatic signing: Xcode creates or fetches the distribution cert and profile through the API key.
+# Automatic signing: Xcode creates or fetches the distribution cert and profiles (app AND the
+# KINWidgets extension, with the group.com.mutaafaziz.kin App Group) through the API key.
+# Command-line build settings apply to every target, so both get the same team and versions.
 xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
   -destination 'generic/platform=iOS' -archivePath "$ARCHIVE" \
   DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
