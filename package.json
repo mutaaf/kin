@@ -19,7 +19,8 @@
     "ios:sim": "sh scripts/ios-sim.sh",
     "deploy": "npm run check && wrangler deploy",
     "testflight": "sh scripts/testflight.sh",
-    "icons": "node scripts/make-icons.mjs 28"
+    "icons": "node scripts/make-icons.mjs 28",
+    "ios:device": "sh scripts/ios-device.sh"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.3",
