@@ -33,6 +33,12 @@ npm run check      # typecheck + tests + production web build
 day. `?debug` shows the brain's reasoning and fps. `?k=<slot>` picks which home (each window is
 its own home).
 
+## Privacy and ads
+The app collects nothing and needs no account. Per the owner's 2026-10-30 decision to monetize the
+collection, the **landing page** (`/kin/about/`, web only) carries one child-directed banner served
+by Marquee: kid-safe sponsors only, no click-outs, never in the app or over the creature, and none
+in the iPhone/iPad build. Ad policy: https://mutaafaziz.com/ads/privacy/
+
 ## What's real today
 See `docs/PLAN.md` for sprint status and the honest list of limitations. The phone-to-phone relay
 is next. Engineering principles: `docs/ENGINEERING.md`. Original vision: `docs/blueprint/`.

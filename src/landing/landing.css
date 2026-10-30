@@ -288,6 +288,12 @@ h3 { margin: 0 0 18px; font: 350 clamp(30px, 3.4vw, 48px)/1.06 var(--display); l
 .cta { text-align: center; padding-bottom: clamp(90px, 12vw, 160px); }
 .cta h2 { font-size: clamp(42px, 6.4vw, 96px); margin: 0 auto 36px; }
 .cta .ctas { justify-content: center; }
+/* Marquee banner (src/landing/ads.ts): collapses to nothing when there's no fill. */
+.ad-slot { display: flex; justify-content: center; padding: 0 var(--gutter) clamp(40px, 6vw, 72px); }
+.ad-slot [data-marquee] { width: min(100%, 728px); min-height: 90px; border-radius: 14px; overflow: hidden; }
+.ad-slot [data-marquee][hidden] { display: none; }
+.ad-slot:has([data-marquee][hidden]), .ad-slot:has([data-marquee]:empty) { display: none; } /* nothing until filled */
+.foot a { color: var(--muted); }
 .foot {
   display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 28px var(--gutter) calc(28px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--line); color: var(--faint); font-size: 12.5px;
