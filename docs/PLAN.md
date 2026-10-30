@@ -27,6 +27,7 @@ Source vision: `docs/blueprint/` (README, PDF, moodboard). This plan amends the 
 **Kill criterion:** if the Sprint 2 video doesn't land, iterate on the crossing before building any other pillar.
 
 ## Known limitations (honest list)
+- Ads (2026-10-30): one Marquee banner on the web landing page only; AdSense isn't approved, so it shows nothing yet. Native AdMob is not built.
 - Device-to-device linking runs through the internet relay (mutaafaziz.com). Fully offline LAN linking (laptop relay / native peers) is later.
 - Stitch pairing is unit-tested and verified against the live relay with simulated devices, **but not yet on physical phones**. Tune the timing window (`WINDOW`) and the edge zone (`EDGE_PX`) on real glass.
 - After a relay reconnect, devices must stitch again to rejoin a room.

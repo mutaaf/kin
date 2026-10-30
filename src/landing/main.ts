@@ -5,6 +5,7 @@ import { startHero } from './hero';
 import { runMany, type Tally } from './proof';
 import { arcDemo, brainDemo, seedDemo, skyDemo, stitchDemo } from './sections';
 import { Director } from './trailer';
+import { loadAds } from './ads';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const fmt = (n: number) => n.toLocaleString('en-US');
@@ -133,3 +134,6 @@ again.addEventListener('click', runProof);
 onView($('sky-strip'), () => void skyDemo($('sky-line'), $<HTMLCanvasElement>('sky-strip')));
 brainDemo(document.querySelector<HTMLElement>('[data-proof="brain"]')!);
 onView($('seed-canvas'), () => seedDemo($<HTMLCanvasElement>('seed-canvas'), $('seed-label'), $<HTMLButtonElement>('seed-next')));
+
+// ── Ads: one menu-context banner at the foot of this page (web only; see ./ads.ts).
+loadAds();
