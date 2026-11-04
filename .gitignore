@@ -10,3 +10,5 @@ native-dist
 .claude/
 public/play/Build/
 public/play/TemplateData/
+store/lobby/out
+store/lobby/cand

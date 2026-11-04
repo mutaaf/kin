@@ -29,3 +29,7 @@ vision is in `docs/blueprint/`. AGENTS.md has the definition of done.
 | Native web bundle is `native-dist/` (outside `dist/`) | Everything in `dist/` is uploaded as site assets |
 | Peer ids are `<deviceId>-<slot>`, with deviceId in localStorage `kin:device` | Every device's first home is slot "home", so slot alone collides |
 | `tools/icon.html` renders the icon from the real creature; eyelids must be hidden there | KinView normally manages the lids; without it the eyes look half-shut |
+| Store captures (`node scripts/store-shots.mjs`, for Lobby) need the real GPU: Chromium `--use-angle=metal` | Under SwiftShader a 3x frame takes >30 s, so frame-driven fades never finish and every shot comes out dim |
+| A returning KIN's world takes ~25 s to light up after a page load | Screenshots taken sooner are dark; the store script waits 26 s per load |
+| The KIN roams and often walks out of frame | Store shots are bursts in `store/lobby/cand/` (gitignored); `KIN_PICK` in `store/lobby.json`'s capture command records which candidate became each raw |
+| Playwright's fake clock stalls the crossing (session timers) | The store script fakes the clock for solo scenes only, never for the two-instance crossing |
