@@ -1,0 +1,146 @@
+{
+  "lobby": 1,
+  "slug": "kin",
+  "name": "KIN",
+  "category": "A tiny creature that lives with you",
+  "tagline": "A tiny friend under your real sky.",
+  "audience": "kids",
+  "stores": [
+    "appstore",
+    "web"
+  ],
+  "ipad": true,
+  "ios": {
+    "bundleId": "com.mutaafaziz.kin"
+  },
+  "icon": "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
+  "brand": {
+    "mode": "dark",
+    "bg": "#0B0D12",
+    "bg2": "#1A2030",
+    "ink": "#F6F6F3",
+    "muted": "#C9CCD6",
+    "accent": "#6EE5CA",
+    "accent2": "#E9AF6B",
+    "highlight": "rgba(158,168,255,.5)",
+    "glow": [
+      "#6EE5CA",
+      "#9EA8FF",
+      "#E9AF6B"
+    ],
+    "shadow": "#6EE5CA",
+    "display": {
+      "family": "Fraunces",
+      "weights": [
+        600
+      ]
+    },
+    "displayWeight": 600,
+    "tracking": "-.02em",
+    "lineHeight": 1.0,
+    "body": {
+      "family": "Geist",
+      "weights": [
+        500,
+        700
+      ]
+    },
+    "mono": {
+      "family": "Geist Mono",
+      "weights": [
+        600
+      ]
+    },
+    "texture": "stars",
+    "ribbon": true
+  },
+  "raw": {
+    "iphone": "store/lobby/raw/iphone",
+    "ipad": "store/lobby/raw/ipad"
+  },
+  "capture": {
+    "command": "npm run dev & sleep 5; KIN_PICK=\"iphone/01-meadow=1,iphone/03-play=2,iphone/05-snow=3,iphone/06-night=3,iphone/07-card=1,iphone/08-cocoon=3,ipad/01-meadow=0,ipad/03-play=2,ipad/05-snow=4,ipad/06-night=3,ipad/07-card=4,ipad/08-cocoon=2,cross=1\" node scripts/store-shots.mjs all",
+    "notes": "scripts/store-shots.mjs drives the real app bundle headless (Playwright from ../outatime-88, real GPU via Metal) at 1320x2868 and 2064x2752, with Playwright's clock set so sky and HUD time agree. The crossing (02-cross-a/b) uses embed mode: two real instances side by side, Lumi visits Nox. The KIN roams, so each scene is a burst of candidates in store/lobby/cand/ (gitignored); KIN_PICK records which one became the raw. A fresh run picks different moments: look at the candidates and update KIN_PICK. Real GPU (Metal) only: SwiftShader is too slow and shots come out dim."
+  },
+  "shots": [
+    {
+      "id": "meadow",
+      "raw": "01-meadow",
+      "layout": "cover",
+      "title": "A tiny friend that *lives with you*.",
+      "sub": "Hatch your KIN. It grows up in a little world under your real sky.",
+      "badge": "No account"
+    },
+    {
+      "id": "cross",
+      "raw": "02-cross-b",
+      "raw2": "02-cross-a",
+      "layout": "duo",
+      "kicker": "Visit a friend",
+      "title": "Hop onto a *friend's screen*.",
+      "sub": "Two screens side by side. Your KIN walks to the edge and hops across.",
+      "stores": [
+        "appstore",
+        "web"
+      ]
+    },
+    {
+      "id": "snow",
+      "raw": "05-snow",
+      "layout": "bleed",
+      "kicker": "Live sky",
+      "title": "Your weather, *its world*.",
+      "sub": "Snow, rain, wind and sunsets follow the sky where you are."
+    },
+    {
+      "id": "play",
+      "raw": "03-play",
+      "layout": "tilt",
+      "kicker": "Hands-on care",
+      "title": "Flick the ball. _Play fetch._",
+      "sub": "Throw toys, pick berries, pet and brush. No menus in the way."
+    },
+    {
+      "id": "night",
+      "raw": "06-night",
+      "layout": "hero",
+      "kicker": "Day and night",
+      "title": "Day turns to *starlight*.",
+      "sub": "Its sun and moon move with your clock."
+    },
+    {
+      "id": "card",
+      "raw": "07-card",
+      "layout": "spotlight",
+      "kicker": "Bond",
+      "title": "Watch your bond *grow*.",
+      "sub": "Affection, energy and mood, in rings you can read.",
+      "focus": [
+        0.5,
+        0.6,
+        0.85
+      ]
+    },
+    {
+      "id": "cocoon",
+      "raw": "08-cocoon",
+      "layout": "hero",
+      "kicker": "Hatch",
+      "title": "Tap twice. *Meet them.*",
+      "sub": "Every KIN hatches different, with its own name and nature."
+    }
+  ],
+  "feature": {
+    "title": "Hatch a *tiny friend*.",
+    "sub": ""
+  },
+  "avoid": [
+    "Pokémon",
+    "Pokemon",
+    "Tamagotchi",
+    "Nintendo",
+    "Pixar",
+    "Tesla",
+    "Unity"
+  ]
+}
