@@ -74,6 +74,23 @@
 .wn-card h3 { margin: 10px 6px 3px; font-family: var(--display); font-weight: 600; font-size: 16px; line-height: 1.15; letter-spacing: -0.01em; }
 .wn-card p { margin: 0 6px; font-size: 12.5px; line-height: 1.4; color: var(--wn-ink-2); }
 
+/* Callouts that go somewhere: a small ink pill, and the whole card is its tap target. */
+.wn-to { display: inline-flex; align-items: center; gap: 6px; margin: 9px 6px 0; padding: 7px 12px 7px 13px;
+  border: 0; border-radius: 99px; cursor: pointer; background: var(--wn-ink); color: #fff;
+  font: 600 12.5px/1 var(--ui); letter-spacing: 0.01em; transition: transform 0.2s var(--ease), background 0.2s var(--ease); }
+.wn-to span { color: #a8f3e1; transition: transform 0.2s var(--ease); }
+.wn-to::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.wn-has-go { cursor: pointer; transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease); }
+.wn-has-go:hover { transform: translateY(-2px); box-shadow: 0 1px 0 var(--wn-line), 0 16px 30px -14px rgba(16, 19, 26, 0.45); }
+.wn-has-go:hover .wn-to span { transform: translateX(3px); }
+.wn-has-go:active { transform: scale(0.98); }
+.wn-card .wn-to::after { border-radius: 20px; }
+@media (max-width: 719px) {
+  .wn-has-go img { grid-row: span 3; }
+  .wn-to { justify-self: start; margin: 2px 0 4px; padding: 6px 11px 6px 12px; font-size: 12px; }
+  .wn-card .wn-to::after { border-radius: 18px; }
+}
+
 .wn-more { margin-top: 14px; border-radius: 16px; background: rgba(158, 168, 255, 0.1); border: 1px solid rgba(158, 168, 255, 0.28); }
 .wn-more summary { cursor: pointer; list-style: none; padding: 12px 14px; font-weight: 600; font-size: 14px;
   display: flex; align-items: center; justify-content: space-between; border-radius: 16px; }

@@ -2,7 +2,7 @@
 // Lazy chunk: imported only when it will show, so the art never weighs on a normal load.
 
 import './whatsnew.css';
-import type { ArtKey, Release } from './notes';
+import { GO_LABEL, type ArtKey, type Destination, type Release } from './notes';
 import worlds from './art/worlds.webp';
 import toys from './art/toys.webp';
 import persona from './art/persona.webp';
@@ -16,6 +16,8 @@ export interface ModalOptions {
   reducedMotion: boolean;
   /** Called once, after the modal is gone. */
   onClose?: () => void;
+  /** A callout's button was tapped: the modal is gone, open this feature. */
+  onGo?: (d: Destination) => void;
 }
 
 export function showWhatsNew(r: Release, o: ModalOptions): () => void {
@@ -34,10 +36,11 @@ export function showWhatsNew(r: Release, o: ModalOptions): () => void {
       <ul class="wn-cards" aria-label="New in this version">
         ${r.callouts
           .map(
-            (c, i) => `<li class="wn-card" style="--i:${i}">
+            (c, i) => `<li class="wn-card${c.go && o.onGo ? ' wn-has-go' : ''}" style="--i:${i}">
               <img src="${ART[c.art]}" alt="" width="240" height="200" decoding="async" />
               <h3>${esc(c.title)}</h3>
               <p>${esc(c.line)}</p>
+              ${c.go && o.onGo ? `<button class="wn-to" type="button" data-go="${c.go}" aria-label="${esc(`${GO_LABEL[c.go]}: ${c.title}`)}">${esc(GO_LABEL[c.go])}<span aria-hidden="true">→</span></button>` : ''}
             </li>`,
           )
           .join('')}
@@ -80,7 +83,7 @@ export function showWhatsNew(r: Release, o: ModalOptions): () => void {
     if (!closed && !dialog.contains(e.target as Node)) dialog.focus();
   };
 
-  function close() {
+  function close(then?: () => void) {
     if (closed) return;
     closed = true;
     document.removeEventListener('keydown', onKey, true);
@@ -91,13 +94,21 @@ export function showWhatsNew(r: Release, o: ModalOptions): () => void {
       root.remove();
       before?.focus?.();
       o.onClose?.();
+      then?.();
     };
     if (o.reducedMotion) return done();
     root.classList.add('wn-out');
     setTimeout(done, 260);
   }
 
-  go.addEventListener('click', close);
+  go.addEventListener('click', () => close());
+  // A callout's button (the whole card is its tap target) closes the modal, then opens the feature.
+  root.querySelectorAll<HTMLButtonElement>('[data-go]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const d = b.dataset.go as Destination;
+      close(() => o.onGo?.(d));
+    }),
+  );
   // Pointer events on the garden behind must not reach the creature while this is open.
   root.addEventListener('pointerdown', (e) => e.stopPropagation());
   document.addEventListener('keydown', onKey, true);
@@ -106,5 +117,5 @@ export function showWhatsNew(r: Release, o: ModalOptions): () => void {
   app?.setAttribute('aria-hidden', 'true');
   document.body.append(root);
   dialog.focus();
-  return close;
+  return () => close();
 }

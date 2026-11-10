@@ -36,7 +36,7 @@ import { captureRegion, live, liveStateFrom, needsFromDrives } from './platform/
 import { initNative, isNative, setHaptics, tap } from './platform/native';
 import { aiLabel, loadAI } from './ai/config';
 import type { Card } from './ai/schema';
-import { decide as decideWhatsNew, gate, SEEN_KEY } from './whatsnew/decide';
+import { decide as decideWhatsNew, FORCE_GLOBAL, gate, routeTo, SEEN_KEY } from './whatsnew/decide';
 import { notesFor } from './whatsnew/notes';
 import { APP_VERSION } from './whatsnew/version';
 
@@ -1003,11 +1003,13 @@ export async function startApp(slot: string) {
     const notes = notesFor(APP_VERSION);
     const d = decideWhatsNew(
       { seen: kv.get(SEEN_KEY), current: APP_VERSION, returning: !loaded.fresh && loaded.kin.hatched, hasNotes: !!notes },
-      gate({ search: location.search, automated: navigator.webdriver === true, test: import.meta.env.MODE === 'test' }),
+      gate({ search: location.search, automated: navigator.webdriver === true, test: import.meta.env.MODE === 'test', forced: isNative && (window as unknown as Record<string, unknown>)[FORCE_GLOBAL] === true }),
     );
     if (d.record) kv.set(SEEN_KEY, APP_VERSION);
     if (d.show && notes) {
-      setTimeout(() => void import('./whatsnew/modal').then((m) => m.showWhatsNew(notes, { reducedMotion: settings.reducedMotion })), 1200);
+      // A callout's button opens its feature through the shell, the same as tapping it there.
+      const onGo = shell ? (dest: Parameters<typeof routeTo>[0]) => shell.go(routeTo(dest)) : undefined;
+      setTimeout(() => void import('./whatsnew/modal').then((m) => m.showWhatsNew(notes, { reducedMotion: settings.reducedMotion, onGo })), 1200);
     }
   }
 

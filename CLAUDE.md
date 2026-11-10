@@ -35,3 +35,4 @@ vision is in `docs/blueprint/`. AGENTS.md has the definition of done.
 | The KIN roams and often walks out of frame | Store shots are bursts in `store/lobby/cand/` (gitignored); `KIN_PICK` in `store/lobby.json`'s capture command records which candidate became each raw |
 | Playwright's fake clock stalls the crossing (session timers) | The store script fakes the clock for solo scenes only, never for the two-instance crossing |
 | Playwright sets `navigator.webdriver`, so What's new never shows under it | Preview the modal with `?whatsnew=1` (records nothing) |
+| Forcing What's new on a simulator or phone | Debug build + launch argument `-KINWhatsNew YES` (simctl launch or Xcode scheme); Release ignores it |
