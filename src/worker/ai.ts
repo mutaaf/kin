@@ -142,9 +142,10 @@ export async function* stream(o: StreamOpts): AsyncGenerator<Chunk, Usage> {
       if (t) yield { text: t };
       const u = j.usage as { prompt_tokens?: number; completion_tokens?: number; neurons?: number } | undefined;
       if (u) {
-        usage.inTokens += u.prompt_tokens ?? 0;
-        usage.outTokens += u.completion_tokens ?? 0;
-        usage.neurons += u.neurons ?? 0;
+        // Usage is cumulative when it's reported more than once, so keep the last.
+        usage.inTokens = u.prompt_tokens || usage.inTokens;
+        usage.outTokens = u.completion_tokens || usage.outTokens;
+        usage.neurons = u.neurons || usage.neurons;
       }
     }
     return usage;
@@ -199,6 +200,7 @@ export async function* stream(o: StreamOpts): AsyncGenerator<Chunk, Usage> {
 export function describeError(provider: ProviderId, err: unknown): string {
   const e = err as { userFacing?: boolean; message?: string; status?: number; name?: string };
   if (e?.userFacing) return e.message ?? 'The model declined.';
+  if (/^Prompter: .*used up/.test(String(e?.message))) return "Kin's free brain is resting until 00:00 UTC. Bring your own key to keep going.";
   const label = PROVIDERS[provider]?.label ?? provider;
   const status = e?.status;
   if (status === 401 || status === 403) return `${label} rejected the key.`;
