@@ -7,7 +7,7 @@ screen onto a friend's. Web, iPhone and iPad from one codebase.
 > back at you, hops across, and lands on the other screen, where that KIN reacts in its own way.
 > Call it home and it comes back with a memory.
 
-**Live:** https://mutaafaziz.com/kin/ · iPhone/iPad via TestFlight (`npm run testflight`, see docs/TESTFLIGHT.md)
+**Live:** https://mutaafaziz.com/kin/ · **Guide:** https://mutaafaziz.com/kin/guide/ · iPhone/iPad via TestFlight (`npm run testflight`, see docs/TESTFLIGHT.md)
 
 ### Link two devices (no codes, nothing to scan)
 Open KIN on both, put them side by side, and **slide one finger off one screen onto the other**.
