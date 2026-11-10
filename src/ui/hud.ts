@@ -322,6 +322,7 @@ export class Hud {
         ${this.b.native ? sw('liveActivity', 'Lock Screen', 'Show your KIN as a Live Activity, with Feed, Play and Pet buttons') : ''}
         <div class="label">Thoughts</div>
         <div class="toggle"><div>Your own AI<small>${esc(this.b.aiLabel())}. Paste a Claude, OpenAI, xAI or Gemini key in one step.</small></div><button class="btn" data-ai>${'Change'}</button></div>
+        ${this.b.native ? '' : `<div class="label">Help</div><div class="row"><a class="btn" href="${import.meta.env.BASE_URL}guide/">How to play</a></div>`}
         <div class="label">This KIN</div>
         <div class="row"><button class="btn danger" data-release>${this.confirmRelease ? `Tap again to release ${esc(k.name)}` : `Release ${esc(k.name)}`}</button></div>`;
       el.querySelectorAll<HTMLButtonElement>('.switch').forEach((b) =>

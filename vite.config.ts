@@ -9,7 +9,7 @@ const headers = {
   closeBundle() {
     writeFileSync(
       'dist/_headers',
-      ['/kin/', '/kin/index.html', '/kin/about/', '/kin/about/index.html', '/kin/play/', '/kin/play/index.html'].map((p) => `${p}\n  Cache-Control: public, max-age=0, must-revalidate, no-transform\n`).join('') +
+      ['/kin/', '/kin/index.html', '/kin/about/', '/kin/about/index.html', '/kin/play/', '/kin/play/index.html', '/kin/guide/', '/kin/guide/index.html'].map((p) => `${p}\n  Cache-Control: public, max-age=0, must-revalidate, no-transform\n`).join('') +
         '/kin/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n',
     );
   },
@@ -24,8 +24,8 @@ export default defineConfig(({ mode }) => ({
     outDir: mode === 'native' ? 'native-dist' : 'dist/kin',
     emptyOutDir: true,
     target: 'es2022',
-    // Web ships two pages: the app and the landing page (/kin/about/). Native ships the app only.
-    rollupOptions: mode === 'native' ? undefined : { input: { app: 'index.html', about: 'about/index.html' } },
+    // Web ships three pages: the app, the landing page (/kin/about/) and the guide (/kin/guide/). Native ships the app only.
+    rollupOptions: mode === 'native' ? undefined : { input: { app: 'index.html', about: 'about/index.html', guide: 'guide/index.html' } },
   },
   server: { port: 5188 },
   preview: { port: 5189 },
