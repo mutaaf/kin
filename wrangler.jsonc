@@ -12,7 +12,8 @@
   "durable_objects": { "bindings": [{ "name": "LOBBY", "class_name": "Lobby" }, { "name": "METER", "class_name": "Meter" }] },
   // SQLite-backed classes are the kind the Workers Free plan supports.
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Lobby"] }, { "tag": "v2", "new_sqlite_classes": ["Meter"] }],
-  // The AI director's free default brain (Workers AI, inside the daily free allowance).
-  "ai": { "binding": "AI" },
+  // The AI director's free default brain: Workers AI through Prompter (github.com/mutaaf/prompter), which shares
+  // the account's free allowance between apps (Kin: 1,250 neurons a day guaranteed). Own-key calls never go through it.
+  "services": [{ "binding": "AI", "service": "prompter", "props": { "app": "kin" } }],
   "routes": [{ "pattern": "mutaafaziz.com/kin*", "zone_name": "mutaafaziz.com" }]
 }
