@@ -293,6 +293,11 @@ export class Shell {
     if (this.sheetKind === 'explore') this.renderStrip();
   }
 
+  /** Open a place from outside the shell (a What's new callout): the same path as tapping it. */
+  go(act: string) {
+    this.run(act);
+  }
+
   /** Show the interface (an interaction happened). */
   wake() {
     if (!this.ready || this.photo) return;
@@ -384,6 +389,8 @@ export class Shell {
       case 'ar':
         this.closeSheet();
         return this.d.ar?.enter();
+      case 'identity':
+        return this.openIdentity();
       case 'close':
         return this.closeSheet();
     }

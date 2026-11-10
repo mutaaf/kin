@@ -51,6 +51,12 @@ The app shows a "What's new" modal once per version after an update, on the web 
   never under `embed`, the store-capture params (`wx`, `hour`, `first`), test params (`sx`,
   `room`, `seed`, `relay`, `debug`), vitest or an automated browser (`navigator.webdriver`).
   `?whatsnew=1` previews it without recording anything, and `?whatsnew=0` suppresses it.
+- On a phone or simulator (Debug builds only), launch with `-KINWhatsNew YES`
+  (`xcrun simctl launch <device> com.mutaafaziz.kin -KINWhatsNew YES`) to force the same preview;
+  it records nothing and is compiled out of Release.
+- Callouts go to the feature: a card whose feature has a place in the app sets `go`
+  (`explore`, `play`, `kin`, `train`); its button closes the modal and opens that place through
+  `Shell.go` (`routeTo` in decide.ts). Cards with no place leave `go` out and stay plain.
 
 ## Shipping: main requires green CI
 

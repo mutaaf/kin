@@ -8,14 +8,37 @@
 //   evergreen news (seasons, launches, meteor showers). Original nods only: no real characters,
 //   franchises, brands, logos, quotes or real people. No politics or tragedy. Family-friendly.
 // - 2 to 4 callouts. Each has art from src/whatsnew/art, a title of a few words and one short line.
+// - A callout whose feature has a place in the app names it in `go`; the card then gets a button
+//   that closes the modal and opens that place (routed by src/whatsnew/decide.ts `routeTo`).
+//   Cards about something with no destination leave `go` out and stay plain.
+//
+// Seeing it (records nothing, so the real once-per-version gate is untouched):
+// - Web: add `?whatsnew=1` to the app URL (`?whatsnew=0` hides it).
+// - iPhone/iPad, Debug builds only: launch with the argument `-KINWhatsNew YES`, e.g.
+//   `xcrun simctl launch <device> com.mutaafaziz.kin -KINWhatsNew YES`, or add it under
+//   Product > Scheme > Edit Scheme > Run > Arguments in Xcode. ios/App/App/KINBridgeViewController.swift
+//   turns it into `window.__KIN_WHATSNEW__`; Release builds compile that out.
 //
 // This file is plain TypeScript with no imports, so `node` can read it directly (type stripping).
 
 /** Card art, cropped from the app's own captures (store/lobby/raw) into src/whatsnew/art/<key>.webp. */
 export type ArtKey = 'worlds' | 'toys' | 'persona' | 'tricks';
 
+/** A place in the app a callout can open. */
+export type Destination = 'explore' | 'play' | 'kin' | 'train';
+
+/** The button on a card with a destination: a verb and the place, a few words. */
+export const GO_LABEL: Record<Destination, string> = {
+  explore: 'Open Explore',
+  play: 'Find the ball',
+  kin: 'See your KIN',
+  train: 'Try a trick',
+};
+
 export interface Callout {
   art: ArtKey;
+  /** Where the card's button takes you; leave out for a card with no place in the app. */
+  go?: Destination;
   /** A few words. */
   title: string;
   /** One short line. */
@@ -42,14 +65,14 @@ export const RELEASES: Release[] = [
   {
     version: '0.2.0',
     date: '2026-11-10',
-    kicker: 'Liftoff log · Meteor-shower season',
+    kicker: 'Liftoff log · Leonids peak Nov 17–18',
     headline: 'Three new worlds have landed',
     dek: 'Your KIN’s biggest update since it hatched: places to roam, toys to chase and a personality all its own.',
     callouts: [
-      { art: 'worlds', title: 'Three worlds to roam', line: 'Sky Meadow, Forest Grove and Crystal Cave open up as your bond grows.' },
-      { art: 'toys', title: 'Toys with real bounce', line: 'A ball, wood blocks and a wobbly jelly toy that roll, tumble and bounce.' },
-      { art: 'persona', title: 'A personality that grows', line: 'Play, snacks and visits nudge your KIN toward Pop Star, Scholar, Explorer and more.' },
-      { art: 'tricks', title: 'Bond levels and tricks', line: 'Care earns Bond XP and unlocks Spin, High five, Roll over and Dance.' },
+      { art: 'worlds', go: 'explore', title: 'Three worlds to roam', line: 'Sky Meadow, Forest Grove and Crystal Cave open up as your bond grows.' },
+      { art: 'toys', go: 'play', title: 'Toys with real bounce', line: 'A ball, wood blocks and a wobbly jelly toy that roll, tumble and bounce.' },
+      { art: 'persona', go: 'kin', title: 'A personality that grows', line: 'Play, snacks and visits nudge your KIN toward Pop Star, Scholar, Explorer and more.' },
+      { art: 'tricks', go: 'train', title: 'Bond levels and tricks', line: 'Care earns Bond XP and unlocks Spin, High five, Roll over and Dance.' },
     ],
     notes: [
       'Living habitats: Sky Meadow opens at bond level 1, Forest Grove at level 2 and Crystal Cave at level 3. Pick one in Explore.',
