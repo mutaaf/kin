@@ -1,0 +1,110 @@
+/* What's new: a bright pearl card lit by the KIN aurora (mint, periwinkle, amber), floating over
+   the garden. Graphite ink, Fraunces headline, Geist body: the app's own type and colour. */
+.wn-scrim {
+  --wn-ink: #10131a;
+  --wn-ink-2: rgba(16, 19, 26, 0.68);
+  --wn-pearl: #fbfaf6;
+  --wn-line: rgba(16, 19, 26, 0.09);
+  position: fixed; inset: 0; z-index: 60;
+  display: grid; place-items: end center;
+  padding: calc(12px + var(--safe-t)) 10px calc(10px + var(--safe-b));
+  background: radial-gradient(120% 80% at 50% 100%, rgba(110, 229, 202, 0.16), rgba(11, 13, 18, 0.55) 60%);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  animation: wn-fade 0.35s var(--ease) both;
+}
+@media (min-width: 720px) { .wn-scrim { place-items: center; padding: 24px; } }
+
+.wn {
+  position: relative; isolation: isolate; overflow: hidden auto;
+  width: min(760px, 100%); max-height: 100%;
+  padding: 26px 20px 18px;
+  border-radius: 28px;
+  background: var(--wn-pearl); color: var(--wn-ink);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.6) inset, 0 0 60px -10px rgba(110, 229, 202, 0.45);
+  font-family: var(--ui);
+  overscroll-behavior: contain;
+  outline: none;
+  animation: wn-rise 0.55s var(--ease) both;
+}
+@media (min-width: 720px) { .wn { padding: 34px 34px 24px; border-radius: 32px; } }
+
+/* The aurora: three soft lights drifting behind the headline, plus a scatter of stars. */
+.wn-aurora { position: absolute; inset: 0 0 auto 0; height: 260px; z-index: -1; pointer-events: none; overflow: hidden;
+  mask-image: linear-gradient(#000 40%, transparent); -webkit-mask-image: linear-gradient(#000 40%, transparent); }
+.wn-aurora i { position: absolute; width: 70%; height: 220px; border-radius: 50%; filter: blur(38px); opacity: 0.85; }
+.wn-aurora i:nth-child(1) { left: -12%; top: -90px; background: #6ee5ca; animation: wn-drift 11s ease-in-out infinite alternate; }
+.wn-aurora i:nth-child(2) { left: 26%; top: -120px; background: #9ea8ff; animation: wn-drift 13s ease-in-out -4s infinite alternate-reverse; }
+.wn-aurora i:nth-child(3) { right: -18%; top: -80px; background: #f3c58d; animation: wn-drift 9s ease-in-out -2s infinite alternate; }
+.wn-aurora b { position: absolute; inset: 0;
+  background-image:
+    radial-gradient(1.6px 1.6px at 14% 22%, #fff 50%, transparent 51%),
+    radial-gradient(1.2px 1.2px at 36% 12%, #fff 50%, transparent 51%),
+    radial-gradient(2px 2px at 62% 30%, #fff 50%, transparent 51%),
+    radial-gradient(1.2px 1.2px at 80% 14%, #fff 50%, transparent 51%),
+    radial-gradient(1.6px 1.6px at 90% 40%, #fff 50%, transparent 51%);
+  animation: wn-twinkle 3.2s ease-in-out infinite alternate; }
+
+.wn-kicker { margin: 0 0 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; color: var(--wn-ink-2); }
+.wn-ver { padding: 4px 9px; border-radius: 99px; background: var(--wn-ink); color: #a8f3e1; letter-spacing: 0.08em; }
+.wn h2 { margin: 0; font-family: var(--display); font-weight: 600; font-size: clamp(30px, 8vw, 46px); line-height: 1.02;
+  letter-spacing: -0.02em; font-variation-settings: 'SOFT' 100, 'WONK' 1; text-wrap: balance; }
+.wn-dek { margin: 10px 0 0; max-width: 46ch; font-size: 15px; line-height: 1.45; color: var(--wn-ink-2); text-wrap: pretty; }
+
+.wn-cards { list-style: none; margin: 20px 0 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 720px) { .wn-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 24px; } }
+/* Phones: compact rows (art left, words right), so the whole update fits with the button in view. */
+@media (max-width: 719px) {
+  .wn h2 { font-size: clamp(28px, 8.4vw, 36px); }
+  .wn-cards { grid-template-columns: 1fr; gap: 8px; margin-top: 16px; }
+  .wn-card { display: grid; grid-template-columns: 76px 1fr; column-gap: 12px; align-items: center; padding: 6px 10px 6px 6px; border-radius: 18px; }
+  .wn-card img { grid-row: span 2; aspect-ratio: 1; border-radius: 13px; }
+  .wn-card h3 { margin: 4px 0 2px; align-self: end; font-size: 16.5px; }
+  .wn-card p { margin: 0 0 4px; align-self: start; }
+  .wn-go { position: sticky; bottom: 0; box-shadow: 0 0 0 10px var(--wn-pearl), 0 -14px 24px 6px var(--wn-pearl), 0 10px 30px -10px rgba(110, 229, 202, 0.9); }
+}
+.wn-card { position: relative; padding: 6px 6px 12px; border-radius: 20px; background: #fff;
+  box-shadow: 0 1px 0 var(--wn-line), 0 10px 24px -14px rgba(16, 19, 26, 0.35);
+  animation: wn-card 0.6s var(--ease) both; animation-delay: calc(0.18s + var(--i) * 0.08s); }
+.wn-card img { display: block; width: 100%; height: auto; aspect-ratio: 6 / 5; object-fit: cover; border-radius: 15px; background: #e9e7f3; }
+.wn-card:nth-child(4n + 1) img { box-shadow: 0 0 0 2px #6ee5ca; }
+.wn-card:nth-child(4n + 2) img { box-shadow: 0 0 0 2px #9ea8ff; }
+.wn-card:nth-child(4n + 3) img { box-shadow: 0 0 0 2px #e9af6b; }
+.wn-card:nth-child(4n + 4) img { box-shadow: 0 0 0 2px #f2a7c8; }
+.wn-card h3 { margin: 10px 6px 3px; font-family: var(--display); font-weight: 600; font-size: 16px; line-height: 1.15; letter-spacing: -0.01em; }
+.wn-card p { margin: 0 6px; font-size: 12.5px; line-height: 1.4; color: var(--wn-ink-2); }
+
+.wn-more { margin-top: 14px; border-radius: 16px; background: rgba(158, 168, 255, 0.1); border: 1px solid rgba(158, 168, 255, 0.28); }
+.wn-more summary { cursor: pointer; list-style: none; padding: 12px 14px; font-weight: 600; font-size: 14px;
+  display: flex; align-items: center; justify-content: space-between; border-radius: 16px; }
+.wn-more summary::-webkit-details-marker { display: none; }
+.wn-more summary::after { content: ''; width: 8px; height: 8px; border: solid currentColor; border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-2px, -2px); transition: transform 0.25s var(--ease); }
+.wn-more[open] summary::after { transform: rotate(225deg) translate(-2px, -2px); }
+.wn-more ul { margin: 0; padding: 0 16px 14px 32px; font-size: 13.5px; line-height: 1.5; color: var(--wn-ink-2); }
+.wn-more li + li { margin-top: 6px; }
+.wn-more li::marker { color: #4cc3a8; }
+
+.wn-go { display: block; width: 100%; margin-top: 14px; padding: 15px 18px; border: 0; border-radius: 99px; cursor: pointer;
+  background: var(--wn-ink); color: #fff; font-weight: 600; font-size: 16px;
+  box-shadow: 0 10px 30px -10px rgba(110, 229, 202, 0.9); transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease); }
+.wn-go:hover { transform: translateY(-1px); box-shadow: 0 14px 34px -10px rgba(110, 229, 202, 1); }
+@media (min-width: 720px) { .wn-go { width: auto; min-width: 220px; margin: 18px auto 0; } }
+
+.wn :focus-visible { outline: 3px solid #5b6cff; outline-offset: 2px; }
+.wn-go:focus-visible { outline-color: #6ee5ca; outline-offset: 3px; }
+
+.wn-scrim.wn-out { animation: wn-fade 0.26s var(--ease) reverse both; }
+.wn-scrim.wn-out .wn { animation: wn-rise 0.26s var(--ease) reverse both; }
+
+@keyframes wn-fade { from { opacity: 0; } }
+@keyframes wn-rise { from { opacity: 0; transform: translateY(28px) scale(0.97); } }
+@keyframes wn-card { from { opacity: 0; transform: translateY(14px) rotate(-1.5deg); } }
+@keyframes wn-drift { to { transform: translate(14%, 18px) scale(1.12); } }
+@keyframes wn-twinkle { from { opacity: 0.35; } to { opacity: 1; } }
+
+/* Reduced motion (the OS setting or KIN's own): everything still, nothing moves. */
+.wn-still, .wn-still * { animation: none !important; transition: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .wn-scrim, .wn-scrim * { animation: none !important; transition: none !important; }
+}

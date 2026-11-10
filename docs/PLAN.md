@@ -35,6 +35,7 @@ Source vision: `docs/blueprint/` (README, PDF, moodboard). This plan amends the 
 - Left/right edges only (phones side by side). Top/bottom edges arrive with the stitch swipe.
 - The return hop approximates the guest's start point as its landing spot.
 - Frame rates have not been measured on physical devices yet (simulator and SwiftShader only).
+- What's new (2026-11-10): the modal is checked in a browser only, not yet on a native build. The iOS project's own MARKETING_VERSION is still 0.1.0; `npm run testflight` stamps package.json's version over it, but `npm run ios:device` builds keep 0.1.0 in iOS Settings (the in-app version comes from package.json either way). The store "What's New" text is printed for pasting, not uploaded.
 
 ## Risks
 COPPA/kids review before any public social feature · "KIN" trademark search before launch · iOS
