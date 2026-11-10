@@ -9,6 +9,7 @@ vision is in `docs/blueprint/`. AGENTS.md has the definition of done.
 - `src/core`, `src/protocol` and `src/session` stay pure: no three.js, DOM or timers (enforced by `tests/boundaries.test.ts`).
 - Same seed ⇒ same creature. Never put `Math.random` in genome or brain decisions.
 - No account and no signup wall. Never call `alert`, `confirm` or `prompt`.
+- A version bump needs its What's new entry in `src/whatsnew/notes.ts` (see AGENTS.md, "What's new").
 
 ## Environment nuances
 | Nuance | Why it matters |
@@ -33,3 +34,4 @@ vision is in `docs/blueprint/`. AGENTS.md has the definition of done.
 | A returning KIN's world takes ~25 s to light up after a page load | Screenshots taken sooner are dark; the store script waits 26 s per load |
 | The KIN roams and often walks out of frame | Store shots are bursts in `store/lobby/cand/` (gitignored); `KIN_PICK` in `store/lobby.json`'s capture command records which candidate became each raw |
 | Playwright's fake clock stalls the crossing (session timers) | The store script fakes the clock for solo scenes only, never for the two-instance crossing |
+| Playwright sets `navigator.webdriver`, so What's new never shows under it | Preview the modal with `?whatsnew=1` (records nothing) |

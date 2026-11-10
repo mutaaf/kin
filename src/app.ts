@@ -36,6 +36,9 @@ import { captureRegion, live, liveStateFrom, needsFromDrives } from './platform/
 import { initNative, isNative, setHaptics, tap } from './platform/native';
 import { aiLabel, loadAI } from './ai/config';
 import type { Card } from './ai/schema';
+import { decide as decideWhatsNew, gate, SEEN_KEY } from './whatsnew/decide';
+import { notesFor } from './whatsnew/notes';
+import { APP_VERSION } from './whatsnew/version';
 
 interface GuestView {
   view: KinView;
@@ -993,6 +996,20 @@ export async function startApp(slot: string) {
         ai: { ask: (q) => void askKin(q), analyze: () => void analyzeKin(), snackFromTopic: (t) => void feedTopic(t) },
       })
     : null;
+
+  // ── What's new (src/whatsnew): once per version after an update, never on a first visit or
+  // under test, capture or demo flags. The modal and its art are a lazy chunk.
+  {
+    const notes = notesFor(APP_VERSION);
+    const d = decideWhatsNew(
+      { seen: kv.get(SEEN_KEY), current: APP_VERSION, returning: !loaded.fresh && loaded.kin.hatched, hasNotes: !!notes },
+      gate({ search: location.search, automated: navigator.webdriver === true, test: import.meta.env.MODE === 'test' }),
+    );
+    if (d.record) kv.set(SEEN_KEY, APP_VERSION);
+    if (d.show && notes) {
+      setTimeout(() => void import('./whatsnew/modal').then((m) => m.showWhatsNew(notes, { reducedMotion: settings.reducedMotion })), 1200);
+    }
+  }
 
   // ── Render loop
   let last = performance.now();

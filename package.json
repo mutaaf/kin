@@ -1,7 +1,7 @@
 {
   "name": "kin",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -20,7 +20,8 @@
     "deploy": "npm run check && wrangler deploy",
     "testflight": "sh scripts/testflight.sh",
     "icons": "node scripts/make-icons.mjs 28",
-    "ios:device": "sh scripts/ios-device.sh"
+    "ios:device": "sh scripts/ios-device.sh",
+    "whatsnew": "node scripts/whats-new.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.3",

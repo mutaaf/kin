@@ -23,6 +23,8 @@ export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Develope
 # Every upload needs a unique, increasing build number; a UTC timestamp always is.
 BUILD=$(date -u +%Y%m%d%H%M)
 VERSION=$(node -p "require('./package.json').version")
+# What's new for this version must exist (src/whatsnew/notes.ts) before anything is built.
+node scripts/whats-new.mjs > /dev/null
 
 npm run check
 npm run build:native
@@ -47,3 +49,6 @@ xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportOptionsPlist ios/build/
   -exportPath ios/build/export $AUTH
 
 echo "✓ KIN $VERSION ($BUILD) uploaded. It appears in TestFlight after Apple's processing (~5–20 min)."
+echo
+echo "What's New for App Store Connect (from src/whatsnew/notes.ts):"
+node scripts/whats-new.mjs

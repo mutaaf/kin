@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { defineConfig } from 'vitest/config';
 
 // Cloudflare Web Analytics is on for the zone and injects a beacon into HTML; the game opts out
@@ -17,7 +17,11 @@ const headers = {
 
 // Web: served at https://mutaafaziz.com/kin/ (Cloudflare Worker route, like the other games).
 // Native (`--mode native`): relative base, bundled into the iOS/iPadOS app by Capacitor.
+const version = (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version;
+
 export default defineConfig(({ mode }) => ({
+  // The app version for What's new (src/whatsnew/version.ts).
+  define: { __KIN_VERSION__: JSON.stringify(version) },
   base: mode === 'native' ? './' : '/kin/',
   plugins: mode === 'native' ? [] : [headers],
   build: {

@@ -31,6 +31,27 @@ Mutaaf decided on 2026-10-30 to monetize the whole collection through Marquee
 - Ad privacy policy: https://mutaafaziz.com/ads/privacy/ (linked from the landing footer).
   `tests/ads.test.ts` guards these rules.
 
+## What's new (every version bump)
+
+The app shows a "What's new" modal once per version after an update, on the web and on native.
+`src/whatsnew/notes.ts` is the single source of truth: one typed entry per version (headline,
+2 to 4 callouts with art, full notes). The same entry is the store "What's New" text
+(`npm run whatsnew`, also printed by `npm run testflight`).
+- Bumping `package.json` "version" means adding its entry first. `tests/whatsnew.test.ts` fails
+  without it, and `npm run testflight` refuses to start.
+- Write the notes from the git history since the last version. Every claim must be true of the
+  shipped build; check the code (the player guide in `guide/` is a fact-checked reference).
+- Headlines may nod at pop culture (creature, pet, sci-fi companion vibes) and light, evergreen
+  news (seasons, launches, meteor showers). Original nods only: no real characters, franchise or
+  brand names, logos, quotes or real people. No politics or tragedy. Family-friendly.
+- Card art lives in `src/whatsnew/art/<key>.webp`, cropped from the app's own captures
+  (`store/lobby/raw`), ~480 px wide, a few KB each.
+- Rules (`src/whatsnew/decide.ts`): never on a first visit or fresh install (it only records
+  `kin:whatsnew:seen`); a returning player with a hatched KIN and no record counts as an update;
+  never under `embed`, the store-capture params (`wx`, `hour`, `first`), test params (`sx`,
+  `room`, `seed`, `relay`, `debug`), vitest or an automated browser (`navigator.webdriver`).
+  `?whatsnew=1` previews it without recording anything, and `?whatsnew=0` suppresses it.
+
 ## Shipping: main requires green CI
 
 `main` is protected, with no admin bypass, so a direct push is rejected. Commit and push without asking, the same as always, but through a branch:
