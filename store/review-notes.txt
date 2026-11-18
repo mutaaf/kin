@@ -1,0 +1,25 @@
+Thank you for reviewing KIN. No sign-in and no demo account: there are no accounts. Nothing is for sale, there are no ads, no analytics and no tracking.
+
+WHAT IT IS
+KIN is a small virtual creature that hatches on your screen and lives in a 3D garden under your real local sky (time of day and live weather). You pet it, feed it, play with it and teach it tricks; a bond level grows with care and opens more places to roam. Its signature feature is screen crossing: put two devices side by side, slide one finger from one screen onto the other, and the creature walks to the edge and hops across to visit the other screen, then comes home. The pairing has no codes or QR: the finger stroke across both screens ("stitch") is what links them, matched by our own relay at mutaafaziz.com.
+
+QUICK TOUR (about a minute)
+1. Tap the cocoon twice. Your KIN hatches; keep the suggested name or type one, then tap That's them.
+2. Touch the screen to show the action bar: Feed, Play, Explore, Train, Camera. Stroke the creature to pet it; drag a berry onto it to feed it; flick the ball to play fetch.
+3. Tap the creature's name at the top for its card: Friends (Gather), Memories, Collection, Settings.
+
+TESTING SCREEN CROSSING
+With two devices: install the app on both (any mix of iPhone and iPad), open it on both with internet on, place them side by side with edges touching, and slide one finger quickly off one screen onto the other. Open Gather on the card and tap Visit to send the creature across. The second device can also be any phone or tablet running the web version in a browser at https://mutaafaziz.com/kin/ (same relay, same creature format).
+With only one device: crossing needs a second screen, so it cannot be completed on a single iPhone or iPad. To see the same crossing on one computer, open https://mutaafaziz.com/kin/ in a desktop browser, open Gather, and tap Open a friend window: the two windows link by themselves and Visit sends the creature across. Everything else in the app works fully on one device.
+
+AI THOUGHTS
+Think, Ask and snack ideas send the creature's name, traits, recent moments and anything typed (max 160 characters back) to our own server, mutaafaziz.com, which answers in real time with a free open model on Cloudflare Workers AI and stores nothing. Replies are limited to short, kind, in-character lines and filtered before display; the AI can only pick creature actions from a fixed safe list. Settings offers an optional bring-your-own key for Anthropic, OpenAI, xAI or Google; the key stays on the device. Weather comes from Open-Meteo using the time zone's city, or a location rounded to about 11 km only if the user turns on Precise sky.
+
+LOCK SCREEN
+On iPhone, Settings > Lock Screen shows the creature as a Live Activity with Feed, Play and Pet buttons.
+
+AUDIENCE
+General audience, not submitted to the Kids category. No chat between players: only the creature's seed, name, colour and traits travel between screens, and Friends > Who can visit offers Ask me, Anyone nearby or Nobody.
+
+HOW IT WAS MADE (4.3, 4.2.6)
+KIN is my own original app, not a template or app-generation service, and not built for a client. The code was written largely with an AI coding assistant (Claude Code) under my direction; I set the concept, design and product decisions, tested it, and am responsible for it. It is built with Capacitor, three.js and Rapier (open source), plus a native Swift Live Activity. The creature, world, art and sounds are original. My other apps are Cold Gas and Hinge Pop (games), Hearth (a TV remote), 17-0 (a football history puzzle) and Moon Club (learning how money and markets work); none shares KIN's code, content or purpose. The same app also runs on the web at mutaafaziz.com/kin.

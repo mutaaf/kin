@@ -93,6 +93,8 @@ export interface ShellDeps {
   identity: () => IdentityData;
   today: () => TodayItem[];
   habitats: { list: HabitatEntry[]; current: () => string; level: () => number; select: (id: string) => void };
+  /** Leave out features that aren't built yet (the App Store build ships no "coming soon" placeholders). */
+  hideSoon?: boolean;
   actions: {
     feed: () => void;
     play: () => void;
@@ -208,7 +210,7 @@ export class Shell {
         ${this.action('play', 'Play', 'play', '#7fb6ff')}
         ${this.action('explore', 'Explore', 'explore', '#6ee5ca')}
         ${this.action('train', 'Train', 'train', '#ffd27a')}
-        ${this.action('customize', 'Customize', 'customize', '#c79bff')}
+        ${this.d.hideSoon ? '' : this.action('customize', 'Customize', 'customize', '#c79bff')}
         ${this.action('camera', 'Camera', 'camera', '#bfc8ff')}
       </nav>
       <span class="mk-clockwrap" aria-hidden="true" data-clock></span>`;
@@ -324,6 +326,7 @@ export class Shell {
   }
 
   private navItem(act: string, label: string, icon: IconName, current = false, soon = false) {
+    if (soon && this.d.hideSoon) return '';
     return `<button class="mk-navitem${current ? ' on' : ''}" data-act="${act}" ${current ? 'aria-current="page"' : ''}>${ICONS[icon]}<span>${label}</span>${soon ? '<em>Soon</em>' : ''}</button>`;
   }
 

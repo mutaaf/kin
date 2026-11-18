@@ -272,20 +272,21 @@ export class Hud {
       void mine;
       el.innerHTML = `
         <h2>Gather</h2>
-        <p class="sub">Phones or tablets side by side? <b>Slide one finger off this screen and onto the other.</b> That links them, with no codes and nothing to scan. Windows on this computer find each other automatically.</p>
+        <p class="sub">Phones or tablets side by side? <b>Slide one finger off this screen and onto the other.</b> That links them, with no codes and nothing to scan.${this.b.native ? '' : ' Windows on this computer find each other automatically.'}</p>
         ${peers.length ? peers.map((p) => `
           <div class="peer"><span class="swatch" style="${swatch(p.hue)}"></span>
             <div class="meta"><div class="n">${esc(p.name)}</div><div class="d">${esc(p.temperament)} · ${p.open ? (p.rect?.fine ? 'next window' : 'linked screen') : 'away right now'}</div></div>
             <button class="btn primary" data-visit="${esc(p.peer)}" ${p.open && canVisit ? '' : 'disabled'}>Visit</button></div>`).join('')
           : `<p class="sub" style="margin:6px 0 2px">Nobody nearby yet.</p>`}
-        <div class="row" style="margin-top:12px"><button class="btn" data-friend>Open a friend window</button></div>
+        ${this.b.native ? '' : '<div class="row" style="margin-top:12px"><button class="btn" data-friend>Open a friend window</button></div>'}
         <div class="label">Who can visit ${esc(k.name)}</div>
         <div class="seg" role="group" aria-label="Who can visit">
           ${(['ask', 'auto', 'off'] as const).map((m) => `<button data-visits="${m}" aria-pressed="${this.b.settings.visits === m}">${{ ask: 'Ask me', auto: 'Anyone nearby', off: 'Nobody' }[m]}</button>`).join('')}
         </div>
 `;
       el.querySelectorAll<HTMLButtonElement>('[data-visit]').forEach((b) => b.addEventListener('click', () => this.b.visit(b.dataset.visit!)));
-      el.querySelector('[data-friend]')!.addEventListener('click', () => this.b.openFriendWindow());
+      // A native app can't open a second window of itself (WKWebView hands window.open to Safari), so the button is web-only.
+      el.querySelector('[data-friend]')?.addEventListener('click', () => this.b.openFriendWindow());
       el.querySelectorAll<HTMLButtonElement>('[data-visits]').forEach((b) =>
         b.addEventListener('click', () => {
           this.b.setSettings({ visits: b.dataset.visits as Settings['visits'] });

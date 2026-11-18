@@ -1,0 +1,38 @@
+{
+  "why": {
+    "violenceCartoonOrFantasy": "None. The creature shivers, sleeps and hides from rain; nothing is hurt.",
+    "userGeneratedContent": "No. The only typed text is a name for your own creature and questions to its AI, which only the typing player sees. Nothing typed is shared with other players.",
+    "messagingAndChat": "No chat between players. Crossing sends only the creature's seed, name, colour and traits.",
+    "unrestrictedWebAccess": "No in-app browser. The four AI-key links in Settings open the providers' key pages in Safari.",
+    "advertising": "No ads in the app. The web about page's sponsor slot is web-only (src/landing/ads.ts returns early on native).",
+    "contests": "None.",
+    "parentalControls": "None.",
+    "ageAssurance": "None."
+  },
+  "answers": {
+    "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+    "contests": "NONE",
+    "gamblingSimulated": "NONE",
+    "gunsOrOtherWeapons": "NONE",
+    "medicalOrTreatmentInformation": "NONE",
+    "profanityOrCrudeHumor": "NONE",
+    "sexualContentGraphicAndNudity": "NONE",
+    "sexualContentOrNudity": "NONE",
+    "horrorOrFearThemes": "NONE",
+    "matureOrSuggestiveThemes": "NONE",
+    "violenceCartoonOrFantasy": "NONE",
+    "violenceRealistic": "NONE",
+    "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+    "gambling": false,
+    "lootBox": false,
+    "unrestrictedWebAccess": false,
+    "userGeneratedContent": false,
+    "messagingAndChat": false,
+    "advertising": false,
+    "healthOrWellnessTopics": false,
+    "ageAssurance": false,
+    "socialMedia": false,
+    "socialMediaAgeRestricted": false,
+    "parentalControls": false
+  }
+}
