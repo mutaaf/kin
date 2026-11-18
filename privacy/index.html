@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0B0D12" />
+    <title>KIN Privacy</title>
+    <meta name="description" content="What KIN keeps on your device, what it sends and to whom, and what it never collects." />
+    <link rel="canonical" href="https://mutaafaziz.com/kin/privacy/" />
+    <link rel="stylesheet" href="../guide/guide.css" />
+  </head>
+  <body>
+    <header class="top">
+      <a class="mark" href="../" aria-label="Open KIN">KIN<span>.</span></a>
+      <nav aria-label="KIN">
+        <a href="../support/">Support</a>
+        <a class="btn" href="../">Play</a>
+      </nav>
+    </header>
+
+    <main>
+      <p class="eyebrow">Privacy</p>
+      <h1>KIN Privacy</h1>
+      <p class="lede">KIN has no accounts, no ads in the app, no analytics and no tracking. We do not collect personal information. This page covers the iPhone and iPad app and the web version at mutaafaziz.com/kin.</p>
+
+      <h2>Kept on your device</h2>
+      <p>Your KIN, its name, its care, its memories and your settings are stored only on your device, in the app's own storage (or your browser's storage on the web). There is no copy on our servers. Deleting the app removes them.</p>
+
+      <h2>What is sent, and why</h2>
+      <ul>
+        <li><b>Weather.</b> To draw your real sky, the app asks Open-Meteo (open-meteo.com) for the weather at a place. By default that place is your time zone's city. If you turn on Precise sky, the app asks for your location, rounds it on the device to about 11 km, and sends only that. Precise sky is off until you turn it on.</li>
+        <li><b>Visiting a friend's screen.</b> When two screens link, our relay at mutaafaziz.com passes messages between them: a random device id, the visiting KIN's seed, name, colour and traits, and where the finger crossed the screens. The relay keeps nothing once the screens disconnect. There is no chat between players, and Who can visit (Ask me, Anyone nearby, Nobody) is in Friends.</li>
+        <li><b>Thoughts (AI).</b> Think, Ask and snack ideas send your KIN's name, traits, recent moments and anything you type to our server at mutaafaziz.com. By default a free open model on Cloudflare Workers AI writes the answer. If you paste your own Claude, OpenAI, xAI or Gemini key in Settings, the request goes to that company instead, under its terms, and the key stays on your device. We answer in real time and do not store what you send. To keep the free model fair, our server counts requests per hour against a one-way hash of your IP address, and those counts are deleted within a day.</li>
+      </ul>
+      <p>Please don't type personal details into Ask. Your KIN is told to change the subject if you do.</p>
+
+      <h2>Lock Screen</h2>
+      <p>On iPhone, the Live Activity shows your KIN on the Lock Screen. It runs on the device and sends nothing.</p>
+
+      <h2>This website</h2>
+      <p>The site is hosted by Cloudflare, which sees what any web host sees to serve a page, such as your IP address and browser type. The KIN app pages and this page load no analytics and no ads. The KIN about page has one sponsor banner from our own ad server, which shows only child-directed, kid-safe sponsors with nothing to click; see the <a href="https://mutaafaziz.com/ads/privacy/">ad privacy policy</a>. The app on iPhone and iPad shows no ads.</p>
+
+      <h2>Children</h2>
+      <p>KIN is made to be gentle and safe for all ages. It asks for no name, email or account, and we do not knowingly collect personal information from anyone, including children.</p>
+
+      <h2>Changes and questions</h2>
+      <p>If any of this changes, this page will change first. Questions are welcome at <a href="https://github.com/mutaaf/kin/issues">GitHub issues</a>. Issues are public, so please leave out anything private.</p>
+      <p>Last updated 18 November 2026.</p>
+    </main>
+
+    <footer>
+      KIN · an original creature, no account required · <a href="../guide/">How to play</a> · <a href="../support/">Support</a> · <a href="https://mutaafaziz.com/">mutaafaziz.com</a>
+    </footer>
+  </body>
+</html>

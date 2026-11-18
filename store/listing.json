@@ -1,0 +1,18 @@
+{
+  "forVersion": "0.2.0",
+  "name": "KIN: A Tiny Friend",
+  "supportUrl": "https://mutaafaziz.com/kin/support/",
+  "marketingUrl": "https://mutaafaziz.com/kin/about/",
+  "privacyPolicyUrl": "https://mutaafaziz.com/kin/privacy/",
+  "copyrightHolder": "Mutaaf Aziz",
+  "categories": {
+    "primary": "GAMES",
+    "primarySubcategories": ["GAMES_SIMULATION", "GAMES_CASUAL"],
+    "secondary": "ENTERTAINMENT"
+  },
+  "contentRights": "USES_THIRD_PARTY_CONTENT",
+  "contentRightsWhy": "The app shows live weather from Open-Meteo (free API, CC BY 4.0) and, when the player asks, text written by an AI model (Cloudflare Workers AI by default, or the player's own provider key). Everything else (creature, world, art, sounds) is original.",
+  "audience": "General audience, not the Kids category. The native app links out to AI providers' key pages and sends player-typed text to an AI model, so it does not meet guideline 1.3 / 5.1.4 for the Kids category; keep kids wording out of the listing (Moon Club's 2.3.8 lesson).",
+  "price": "free",
+  "usesIdfa": false
+}

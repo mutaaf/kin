@@ -42,6 +42,11 @@ timestamps, so they always increase.
   them. Tap Gather → Visit to watch it cross.*
 - Privacy questionnaire answer: **Data Not Collected**.
 
-## Known gaps before App Store (not TestFlight) release
-Screenshots, marketing copy and age rating. A legal/kids review is needed if KIN is ever marketed
-to under-13s (COPPA).
+## App Store (from 2026-11-18)
+The listing lives in `store/` (plain text, `listing.json`, `age-rating.json`, `review-notes.txt`, `app-privacy.md`).
+`node scripts/asc.mjs store-lint` checks lengths and kids wording; `store-meta` pushes the listing, categories, content
+rights, review contact and notes, free pricing and attaches the newest build; `store-rating` answers the age rating;
+`store-check` lists every blocker; `submit --yes` sends it to App Review. KIN is listed as a general-audience app, not in
+the Kids category: it links out to AI providers' key pages and sends typed text to an AI model, which 1.3 / 5.1.4 forbid
+there. The App Store build hides web-only and "coming soon" UI (Open a friend window, Party, Sports, Customize, unbuilt
+habitats). Privacy and support pages are `privacy/` and `support/` (web build, `npm run deploy`).

@@ -970,8 +970,10 @@ export async function startApp(slot: string) {
           why: personaWhy(persona),
         }),
         today: () => todayFrom(kin.memories, world?.world.care ?? null),
+        // Native (App Store) builds list only built habitats and hide "coming soon" features.
+        hideSoon: isNative,
         habitats: {
-          list: HABITATS,
+          list: isNative ? HABITATS.filter((h) => h.status === 'built') : HABITATS,
           current: () => habitatId,
           level: () => careModel.bondLevel(world?.world.care.bondXp ?? 0).level,
           select: switchHabitat,
